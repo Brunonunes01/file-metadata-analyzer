@@ -1,6 +1,7 @@
 package com.metascan.service;
 
 import com.metascan.dto.MetadataExtractResponseDto;
+import com.metascan.dto.MetadataLocationDto;
 import com.metascan.dto.MergedMetadataEntryDto;
 import com.metascan.dto.MetadataSecurityDto;
 import com.metascan.dto.MetadataSummaryDto;
@@ -30,10 +31,15 @@ import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 @Service
@@ -42,12 +48,16 @@ public class MetadataExtractionService {
     private static final DateTimeFormatter HUMAN_READABLE_DATE_FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
     private static final DateTimeFormatter EXIF_DATE_TIME_WITH_ZONE = DateTimeFormatter.ofPattern("yyyy:MM:dd HH:mm:ssXXX");
     private static final DateTimeFormatter EXIF_DATE_TIME_NO_ZONE = DateTimeFormatter.ofPattern("yyyy:MM:dd HH:mm:ss");
+    private static final Pattern COORDINATE_NUMBER_PATTERN = Pattern.compile("(\\d+(?:[\\.,]\\d+)?)");
+    private static final Pattern COORDINATE_DIRECTION_PATTERN = Pattern.compile("(^|\\W)([NSEW])(\\W|$)");
     private final AutoDetectParser parser = new AutoDetectParser();
     private final Tika tika = new Tika();
     private final ExifToolService exifToolService;
+    private final MetadataInsightsService metadataInsightsService;
 
-    public MetadataExtractionService(ExifToolService exifToolService) {
+    public MetadataExtractionService(ExifToolService exifToolService, MetadataInsightsService metadataInsightsService) {
         this.exifToolService = exifToolService;
+        this.metadataInsightsService = metadataInsightsService;
     }
 
     public MetadataExtractResponseDto extract(MultipartFile file) {
@@ -80,10 +90,11 @@ public class MetadataExtractionService {
             ExifToolService.ExifToolResult exifToolResult = exifToolService.extractMetadata(fileBytes, fileName);
             Map<String, Object> exiftoolMetadata = new LinkedHashMap<>(exifToolResult.metadata());
             Map<String, MergedMetadataEntryDto> mergedMetadata = mergeMetadata(extractedMetadata, exiftoolMetadata);
+            int metadataCount = mergedMetadata.size();
 
             String author = findFirstMetadataValue(extractedMetadata, exiftoolMetadata, "dc:creator", "Author", "Creator");
             String lastAuthor = findFirstMetadataValue(extractedMetadata, exiftoolMetadata, "meta:last-author", "LastModifiedBy");
-            String createdAt = formatDate(findFirstMetadataValue(
+            DateResolution createdAtResolution = resolveBestDate(
                     extractedMetadata,
                     exiftoolMetadata,
                     "dcterms:created",
@@ -91,15 +102,17 @@ public class MetadataExtractionService {
                     "meta:creation-date",
                     "CreateDate",
                     "DateCreated"
-            ));
-            String lastModified = formatDate(findFirstMetadataValue(
+            );
+            DateResolution lastModifiedResolution = resolveBestDate(
                     extractedMetadata,
                     exiftoolMetadata,
                     "dcterms:modified",
                     "Last-Modified",
                     "meta:save-date",
                     "ModifyDate"
-            ));
+            );
+            String createdAt = createdAtResolution.value();
+            String lastModified = lastModifiedResolution.value();
             String title = findFirstMetadataValue(extractedMetadata, exiftoolMetadata, "dc:title", "title", "Title");
             String subject = findFirstMetadataValue(extractedMetadata, exiftoolMetadata, "dc:subject", "cp:subject", "subject", "Subject");
             String description = findFirstMetadataValue(extractedMetadata, exiftoolMetadata, "dc:description", "description", "Description");
@@ -121,12 +134,23 @@ public class MetadataExtractionService {
             String extractedText = normalizeText(contentHandler.toString());
             int textLength = extractedText.length();
             String textPreview = textLength == 0 ? "" : extractedText.substring(0, Math.min(1000, textLength));
+            MetadataLocationDto location = buildLocation(exiftoolMetadata);
+            boolean isImageFile = detectedContentType != null && detectedContentType.startsWith("image/");
+            List<String> insights = metadataInsightsService.generateInsights(
+                    author,
+                    createdAtResolution.hasValidDate(),
+                    textLength,
+                    metadataCount,
+                    isImageFile,
+                    location.hasGps()
+            );
+            boolean hasValidAuthor = metadataInsightsService.isValidAuthor(author);
 
             MetadataSecurityDto security = new MetadataSecurityDto(
-                    !extractedMetadata.isEmpty(),
+                    metadataCount > 0,
                     textLength > 0,
-                    hasText(author),
-                    hasText(createdAt)
+                    hasValidAuthor,
+                    createdAtResolution.hasValidDate()
             );
 
             return new MetadataExtractResponseDto(
@@ -137,16 +161,67 @@ public class MetadataExtractionService {
                     extractedMetadata,
                     exiftoolMetadata,
                     mergedMetadata,
+                    metadataCount,
+                    insights,
                     textPreview,
                     textLength,
                     calculateSha256(fileBytes),
                     summary,
                     security,
-                    exifToolResult.status()
+                    exifToolResult.status(),
+                    location
             );
         } catch (IOException | TikaException | SAXException ex) {
             throw new MetadataExtractionException("Falha ao extrair metadados do arquivo.", ex);
         }
+    }
+
+    private MetadataLocationDto buildLocation(Map<String, Object> exiftoolMetadata) {
+        String gpsLatitudeRaw = valueAsText(exiftoolMetadata.get("GPSLatitude"));
+        String gpsLongitudeRaw = valueAsText(exiftoolMetadata.get("GPSLongitude"));
+        String gpsPositionOriginal = valueAsText(exiftoolMetadata.get("GPSPosition"));
+        String gpsDateTime = valueAsText(exiftoolMetadata.get("GPSDateTime"));
+        String gpsAltitude = valueAsText(exiftoolMetadata.get("GPSAltitude"));
+
+        Double latitudeDecimal = parseGpsCoordinate(gpsLatitudeRaw);
+        Double longitudeDecimal = parseGpsCoordinate(gpsLongitudeRaw);
+
+        if ((latitudeDecimal == null || longitudeDecimal == null) && hasText(gpsPositionOriginal)) {
+            String[] parts = gpsPositionOriginal.split("\\s*,\\s*");
+            if (parts.length >= 2) {
+                if (latitudeDecimal == null) {
+                    latitudeDecimal = parseGpsCoordinate(parts[0]);
+                }
+                if (longitudeDecimal == null) {
+                    longitudeDecimal = parseGpsCoordinate(parts[1]);
+                }
+            }
+        }
+
+        boolean hasGps = hasText(gpsLatitudeRaw)
+                || hasText(gpsLongitudeRaw)
+                || hasText(gpsPositionOriginal)
+                || hasText(gpsDateTime)
+                || hasText(gpsAltitude);
+
+        String mapsUrl = null;
+        if (latitudeDecimal != null && longitudeDecimal != null) {
+            mapsUrl = "https://www.google.com/maps?q=" + latitudeDecimal + "," + longitudeDecimal;
+        }
+
+        if (!hasText(gpsPositionOriginal) && hasText(gpsLatitudeRaw) && hasText(gpsLongitudeRaw)) {
+            gpsPositionOriginal = gpsLatitudeRaw + ", " + gpsLongitudeRaw;
+        }
+
+        return new MetadataLocationDto(
+                hasGps,
+                latitudeDecimal,
+                longitudeDecimal,
+                gpsPositionOriginal,
+                mapsUrl,
+                gpsDateTime,
+                gpsAltitude
+        );
     }
 
     private Map<String, MergedMetadataEntryDto> mergeMetadata(Map<String, String> tikaMetadata, Map<String, Object> exiftoolMetadata) {
@@ -192,14 +267,48 @@ public class MetadataExtractionService {
         return null;
     }
 
-    private String formatDate(String rawDate) {
-        if (!hasText(rawDate)) {
-            return null;
+    private DateResolution resolveBestDate(Map<String, String> tikaMetadata, Map<String, Object> exiftoolMetadata, String... keys) {
+        String fallbackRawDate = null;
+
+        for (String key : keys) {
+            Object exifValue = exiftoolMetadata.get(key);
+            if (exifValue == null) {
+                continue;
+            }
+
+            String rawDate = exifValue.toString().trim();
+            if (!hasText(rawDate)) {
+                continue;
+            }
+
+            if (fallbackRawDate == null) {
+                fallbackRawDate = rawDate;
+            }
+
+            Optional<LocalDateTime> parsedDate = parseDate(rawDate);
+            if (parsedDate.isPresent()) {
+                return new DateResolution(HUMAN_READABLE_DATE_FORMATTER.format(parsedDate.get()), true);
+            }
         }
 
-        return parseDate(rawDate)
-                .map(date -> HUMAN_READABLE_DATE_FORMATTER.format(date))
-                .orElse(rawDate);
+        for (String key : keys) {
+            String rawDate = tikaMetadata.get(key);
+            if (!hasText(rawDate)) {
+                continue;
+            }
+
+            String trimmedDate = rawDate.trim();
+            if (fallbackRawDate == null) {
+                fallbackRawDate = trimmedDate;
+            }
+
+            Optional<LocalDateTime> parsedDate = parseDate(trimmedDate);
+            if (parsedDate.isPresent()) {
+                return new DateResolution(HUMAN_READABLE_DATE_FORMATTER.format(parsedDate.get()), true);
+            }
+        }
+
+        return new DateResolution(fallbackRawDate, false);
     }
 
     private Optional<LocalDateTime> parseDate(String rawDate) {
@@ -304,5 +413,64 @@ public class MetadataExtractionService {
 
     private boolean hasText(String value) {
         return value != null && !value.isBlank();
+    }
+
+    private String valueAsText(Object value) {
+        if (value == null) {
+            return null;
+        }
+        String text = value.toString().trim();
+        return text.isEmpty() ? null : text;
+    }
+
+    private Double parseGpsCoordinate(String rawCoordinate) {
+        if (!hasText(rawCoordinate)) {
+            return null;
+        }
+
+        String normalized = rawCoordinate.trim().toUpperCase(Locale.ROOT);
+        Character direction = extractDirection(normalized);
+
+        List<Double> numericParts = new ArrayList<>();
+        Matcher matcher = COORDINATE_NUMBER_PATTERN.matcher(normalized);
+        while (matcher.find()) {
+            String numberToken = matcher.group(1).replace(',', '.');
+            try {
+                numericParts.add(Double.parseDouble(numberToken));
+            } catch (NumberFormatException ignored) {
+                return null;
+            }
+        }
+
+        if (numericParts.isEmpty()) {
+            return null;
+        }
+
+        double degrees = numericParts.get(0);
+        double minutes = numericParts.size() > 1 ? numericParts.get(1) : 0d;
+        double seconds = numericParts.size() > 2 ? numericParts.get(2) : 0d;
+
+        double decimal = degrees + (minutes / 60d) + (seconds / 3600d);
+        if (direction != null && (direction == 'S' || direction == 'W')) {
+            decimal = -Math.abs(decimal);
+        } else if (direction != null && (direction == 'N' || direction == 'E')) {
+            decimal = Math.abs(decimal);
+        }
+
+        return decimal;
+    }
+
+    private Character extractDirection(String normalizedCoordinate) {
+        Matcher directionMatcher = COORDINATE_DIRECTION_PATTERN.matcher(normalizedCoordinate);
+        if (directionMatcher.find()) {
+            return directionMatcher.group(2).charAt(0);
+        }
+        return null;
+    }
+
+    private record DateResolution(
+            String value,
+            boolean hasValidDate
+    ) {
     }
 }

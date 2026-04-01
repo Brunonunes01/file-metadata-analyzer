@@ -1,12 +1,15 @@
+com/metascan/service/MetadataExtractionService$DateResolution.class
 com/metascan/exception/MetadataExtractionException.class
 com/metascan/service/ExifToolService$ExifToolResult.class
 com/metascan/dto/MetadataResponseDto.class
+com/metascan/service/MetadataInsightsService.class
 com/metascan/service/ExifToolService.class
 com/metascan/dto/MetadataSecurityDto.class
 com/metascan/dto/ErrorResponseDto.class
 com/metascan/controller/MetadataController.class
 com/metascan/dto/MetadataExtractResponseDto.class
 com/metascan/dto/MetadataSummaryDto.class
+com/metascan/dto/MetadataLocationDto.class
 com/metascan/exception/BadRequestException.class
 com/metascan/exception/GlobalExceptionHandler.class
 com/metascan/service/ExifToolService$1.class

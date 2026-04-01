@@ -3,6 +3,7 @@
 /home/bruno/Projects/metascan/src/main/java/com/metascan/dto/ErrorResponseDto.java
 /home/bruno/Projects/metascan/src/main/java/com/metascan/dto/MergedMetadataEntryDto.java
 /home/bruno/Projects/metascan/src/main/java/com/metascan/dto/MetadataExtractResponseDto.java
+/home/bruno/Projects/metascan/src/main/java/com/metascan/dto/MetadataLocationDto.java
 /home/bruno/Projects/metascan/src/main/java/com/metascan/dto/MetadataResponseDto.java
 /home/bruno/Projects/metascan/src/main/java/com/metascan/dto/MetadataSecurityDto.java
 /home/bruno/Projects/metascan/src/main/java/com/metascan/dto/MetadataSummaryDto.java
@@ -11,3 +12,4 @@
 /home/bruno/Projects/metascan/src/main/java/com/metascan/exception/MetadataExtractionException.java
 /home/bruno/Projects/metascan/src/main/java/com/metascan/service/ExifToolService.java
 /home/bruno/Projects/metascan/src/main/java/com/metascan/service/MetadataExtractionService.java
+/home/bruno/Projects/metascan/src/main/java/com/metascan/service/MetadataInsightsService.java
