@@ -3,6 +3,8 @@ import MetadataTabs from './MetadataTabs'
 function AnalysisResult({ data }) {
   const summary = data?.summary || {}
   const security = data?.security || {}
+  const privacyRisk = data?.privacyRisk
+  const hasPrivacyRisk = Boolean(privacyRisk && typeof privacyRisk === 'object')
   const location = data?.location
   const hasLocationData = Boolean(location && typeof location === 'object')
   const insights = Array.isArray(data?.insights) ? data.insights : []
@@ -19,6 +21,40 @@ function AnalysisResult({ data }) {
           <InfoRow label="Hash SHA-256" value={data?.hashSha256} />
         </dl>
       </section>
+
+      {hasPrivacyRisk && (
+        <section className="card privacy-risk-card">
+          <h2>Risco e Privacidade</h2>
+          <div className="risk-header">
+            <span className={`risk-badge ${privacyRisk.level || 'low'}`}>
+              {formatRiskLevel(privacyRisk.level)}
+            </span>
+            <span className="risk-score">Score: {privacyRisk.score ?? 0}</span>
+          </div>
+
+          <h3 className="risk-subtitle">Motivos</h3>
+          {Array.isArray(privacyRisk.reasons) && privacyRisk.reasons.length > 0 ? (
+            <ul className="risk-list">
+              {privacyRisk.reasons.map((reason, index) => (
+                <li key={`${index}-${reason}`}>{reason}</li>
+              ))}
+            </ul>
+          ) : (
+            <p className="muted">Nenhum motivo sensível detectado.</p>
+          )}
+
+          <h3 className="risk-subtitle">Dados sensíveis encontrados</h3>
+          {Array.isArray(privacyRisk.sensitiveDataFound) && privacyRisk.sensitiveDataFound.length > 0 ? (
+            <ul className="sensitive-tags">
+              {privacyRisk.sensitiveDataFound.map((item, index) => (
+                <li key={`${index}-${item}`}>{item}</li>
+              ))}
+            </ul>
+          ) : (
+            <p className="muted">Nenhum dado sensível identificado.</p>
+          )}
+        </section>
+      )}
 
       <section className="card">
         <h2>Insights</h2>
@@ -152,6 +188,16 @@ function formatCoordinate(value) {
     return '-'
   }
   return value.toFixed(6)
+}
+
+function formatRiskLevel(level) {
+  if (level === 'high') {
+    return 'Alto'
+  }
+  if (level === 'medium') {
+    return 'Médio'
+  }
+  return 'Baixo'
 }
 
 export default AnalysisResult

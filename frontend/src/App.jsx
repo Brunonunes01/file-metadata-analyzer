@@ -3,6 +3,9 @@ import AnalysisResult from './components/AnalysisResult'
 import LoadingState from './components/LoadingState'
 import UploadPanel from './components/UploadPanel'
 import { extractMetadata } from './services/metadataService'
+import { exportAnalysisAsJson } from './utils/exportAnalysisJson'
+import { exportAnalysisAsTxt } from './utils/exportAnalysisTxt'
+import { exportAnalysisAsPdf } from './utils/exportAnalysisPdf'
 import './App.css'
 
 function App() {
@@ -68,6 +71,18 @@ function App() {
     }
   }
 
+  const handleExportJson = () => {
+    exportAnalysisAsJson(result)
+  }
+
+  const handleExportTxt = () => {
+    exportAnalysisAsTxt(result)
+  }
+
+  const handleExportPdf = () => {
+    exportAnalysisAsPdf(result)
+  }
+
   return (
     <main className="app-shell">
       <header className="hero">
@@ -108,9 +123,25 @@ function App() {
       {isLoading && <LoadingState />}
 
       {result && (
-        <section className="results-wrapper">
-          <AnalysisResult data={result} />
-        </section>
+        <>
+          <section className="card export-card">
+            <div className="export-actions">
+              <button type="button" className="button secondary export-button" onClick={handleExportTxt}>
+                Exportar TXT
+              </button>
+              <button type="button" className="button secondary export-button" onClick={handleExportPdf}>
+                Exportar PDF
+              </button>
+              <button type="button" className="button primary export-button" onClick={handleExportJson}>
+                Exportar JSON
+              </button>
+            </div>
+          </section>
+
+          <section className="results-wrapper">
+            <AnalysisResult data={result} />
+          </section>
+        </>
       )}
     </main>
   )
