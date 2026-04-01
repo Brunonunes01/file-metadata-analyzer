@@ -1,0 +1,13 @@
+/home/bruno/Projects/metascan/src/main/java/com/metascan/MetaScanApplication.java
+/home/bruno/Projects/metascan/src/main/java/com/metascan/controller/MetadataController.java
+/home/bruno/Projects/metascan/src/main/java/com/metascan/dto/ErrorResponseDto.java
+/home/bruno/Projects/metascan/src/main/java/com/metascan/dto/MergedMetadataEntryDto.java
+/home/bruno/Projects/metascan/src/main/java/com/metascan/dto/MetadataExtractResponseDto.java
+/home/bruno/Projects/metascan/src/main/java/com/metascan/dto/MetadataResponseDto.java
+/home/bruno/Projects/metascan/src/main/java/com/metascan/dto/MetadataSecurityDto.java
+/home/bruno/Projects/metascan/src/main/java/com/metascan/dto/MetadataSummaryDto.java
+/home/bruno/Projects/metascan/src/main/java/com/metascan/exception/BadRequestException.java
+/home/bruno/Projects/metascan/src/main/java/com/metascan/exception/GlobalExceptionHandler.java
+/home/bruno/Projects/metascan/src/main/java/com/metascan/exception/MetadataExtractionException.java
+/home/bruno/Projects/metascan/src/main/java/com/metascan/service/ExifToolService.java
+/home/bruno/Projects/metascan/src/main/java/com/metascan/service/MetadataExtractionService.java
