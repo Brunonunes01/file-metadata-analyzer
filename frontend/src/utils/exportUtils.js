@@ -14,10 +14,16 @@ export function triggerDownloadFromBlob(blob, fileName) {
   const link = document.createElement('a')
   link.href = objectUrl
   link.download = fileName
+  link.rel = 'noopener'
+  link.style.display = 'none'
   document.body.appendChild(link)
   link.click()
   document.body.removeChild(link)
-  URL.revokeObjectURL(objectUrl)
+
+  // Evita revogar cedo demais o blob em navegadores que iniciam o download de forma assíncrona.
+  window.setTimeout(() => {
+    URL.revokeObjectURL(objectUrl)
+  }, 30_000)
 }
 
 export function formatFileSize(bytes) {

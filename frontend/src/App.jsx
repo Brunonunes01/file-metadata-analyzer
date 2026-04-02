@@ -1,8 +1,9 @@
 import { useRef, useState } from 'react'
 import AnalysisResult from './components/AnalysisResult'
 import LoadingState from './components/LoadingState'
+import LocationPrivacyPanel from './components/LocationPrivacyPanel'
 import UploadPanel from './components/UploadPanel'
-import { cleanMetadata, extractMetadata } from './services/metadataService'
+import { cleanMetadata, extractMetadata, spoofMetadata } from './services/metadataService'
 import { exportAnalysisAsJson } from './utils/exportAnalysisJson'
 import { exportAnalysisAsTxt } from './utils/exportAnalysisTxt'
 import { exportAnalysisAsPdf } from './utils/exportAnalysisPdf'
@@ -13,8 +14,10 @@ function App() {
   const [file, setFile] = useState(null)
   const [isLoading, setIsLoading] = useState(false)
   const [isCleaningMetadata, setIsCleaningMetadata] = useState(false)
+  const [isSpoofingMetadata, setIsSpoofingMetadata] = useState(false)
   const [dragActive, setDragActive] = useState(false)
   const [error, setError] = useState('')
+  const [locationActionMessage, setLocationActionMessage] = useState('')
   const [result, setResult] = useState(null)
   const [analyzedFile, setAnalyzedFile] = useState(null)
   const fileInputRef = useRef(null)
@@ -68,9 +71,11 @@ function App() {
       const response = await extractMetadata(file)
       setResult(response)
       setAnalyzedFile(file)
+      setLocationActionMessage('')
     } catch (requestError) {
       setAnalyzedFile(null)
       setError(requestError.message || 'Não foi possível analisar o arquivo. Tente novamente.')
+      setLocationActionMessage('')
     } finally {
       setIsLoading(false)
     }
@@ -107,20 +112,113 @@ function App() {
     }
   }
 
+  const handleRemoveLocation = async () => {
+    if (!analyzedFile) {
+      setError('Selecione e analise uma imagem antes de remover a localização GPS.')
+      return
+    }
+
+    setIsSpoofingMetadata(true)
+    setError('')
+    setLocationActionMessage('')
+
+    try {
+      const spoofedFile = await spoofMetadata(analyzedFile, { action: 'remove_gps' })
+      triggerDownloadFromBlob(spoofedFile.blob, spoofedFile.fileName)
+      setLocationActionMessage('Localização GPS removida com sucesso. O download da nova cópia foi iniciado.')
+    } catch (requestError) {
+      setError(requestError.message || 'Não foi possível remover a localização GPS da imagem.')
+    } finally {
+      setIsSpoofingMetadata(false)
+    }
+  }
+
+  const handleReplaceLocation = async (latitude, longitude) => {
+    if (!analyzedFile) {
+      setError('Selecione e analise uma imagem antes de substituir a localização GPS.')
+      return
+    }
+
+    setIsSpoofingMetadata(true)
+    setError('')
+    setLocationActionMessage('')
+
+    try {
+      const spoofedFile = await spoofMetadata(analyzedFile, {
+        action: 'replace_gps',
+        latitude,
+        longitude,
+      })
+      triggerDownloadFromBlob(spoofedFile.blob, spoofedFile.fileName)
+      setLocationActionMessage('Localização GPS substituída com sucesso. O download da nova cópia foi iniciado.')
+    } catch (requestError) {
+      setError(requestError.message || 'Não foi possível substituir a localização GPS da imagem.')
+    } finally {
+      setIsSpoofingMetadata(false)
+    }
+  }
+
+  const handleChangeDate = async (newDate) => {
+    if (!analyzedFile) {
+      setError('Selecione e analise um arquivo antes de alterar a data dos metadados.')
+      return
+    }
+
+    setIsSpoofingMetadata(true)
+    setError('')
+    setLocationActionMessage('')
+
+    try {
+      const spoofedFile = await spoofMetadata(analyzedFile, {
+        action: 'change_date',
+        newDate,
+      })
+      triggerDownloadFromBlob(spoofedFile.blob, spoofedFile.fileName)
+      setLocationActionMessage('Data dos metadados alterada com sucesso. O download da nova cópia foi iniciado.')
+    } catch (requestError) {
+      setError(requestError.message || 'Não foi possível alterar a data dos metadados.')
+    } finally {
+      setIsSpoofingMetadata(false)
+    }
+  }
+
+  const handleChangeAuthor = async (author) => {
+    if (!analyzedFile) {
+      setError('Selecione e analise um arquivo antes de alterar o autor dos metadados.')
+      return
+    }
+
+    setIsSpoofingMetadata(true)
+    setError('')
+    setLocationActionMessage('')
+
+    try {
+      const spoofedFile = await spoofMetadata(analyzedFile, {
+        action: 'change_author',
+        author,
+      })
+      triggerDownloadFromBlob(spoofedFile.blob, spoofedFile.fileName)
+      setLocationActionMessage('Autor dos metadados alterado com sucesso. O download da nova cópia foi iniciado.')
+    } catch (requestError) {
+      setError(requestError.message || 'Não foi possível alterar o autor dos metadados.')
+    } finally {
+      setIsSpoofingMetadata(false)
+    }
+  }
+
   const canCleanMetadata =
     result &&
     analyzedFile &&
     (result.contentTypeDetectado === 'image/jpeg' || result.contentTypeDetectado === 'image/png')
+  const canSpoofMetadata = Boolean(result && analyzedFile)
 
   return (
     <main className="app-shell">
       <header className="hero">
-        <span className="hero-tag">Análise Inteligente de Metadados</span>
+        <span className="hero-tag">[ SYSTEM ONLINE ]</span>
         <h1>MetaScan</h1>
-        <p>
-          Envie um arquivo para extrair informações técnicas, resumo amigável, insights e indicadores de
-          segurança em uma única tela.
-        </p>
+        <p className="hero-subtitle">OSINT Metadata Analyzer</p>
+        <p>Extraia sinais técnicos, contexto de segurança e indicadores de privacidade em uma única interface.</p>
       </header>
 
       <input
@@ -156,13 +254,13 @@ function App() {
           <section className="card export-card">
             <div className="export-actions">
               <button type="button" className="button secondary export-button" onClick={handleExportTxt}>
-                Exportar TXT
+                [ EXPORT TXT ]
               </button>
               <button type="button" className="button secondary export-button" onClick={handleExportPdf}>
-                Exportar PDF
+                [ EXPORT PDF ]
               </button>
               <button type="button" className="button primary export-button" onClick={handleExportJson}>
-                Exportar JSON
+                [ EXPORT JSON ]
               </button>
               {canCleanMetadata && (
                 <button
@@ -171,11 +269,32 @@ function App() {
                   onClick={handleCleanMetadata}
                   disabled={isCleaningMetadata}
                 >
-                  {isCleaningMetadata ? 'Limpando...' : 'Baixar imagem limpa'}
+                  {isCleaningMetadata ? '[ CLEANING... ]' : '[ DOWNLOAD CLEAN IMAGE ]'}
                 </button>
               )}
             </div>
           </section>
+
+          {canSpoofMetadata && (
+            <LocationPrivacyPanel
+              loading={isSpoofingMetadata}
+              onRemove={handleRemoveLocation}
+              onReplace={handleReplaceLocation}
+              onChangeDate={handleChangeDate}
+              onChangeAuthor={handleChangeAuthor}
+              canUseGps={canCleanMetadata}
+              hasOriginalGps={Boolean(result?.location?.hasGps)}
+              originalLatitude={result?.location?.latitudeDecimal}
+              originalLongitude={result?.location?.longitudeDecimal}
+            />
+          )}
+
+          {locationActionMessage && (
+            <section className="card success-card" role="status">
+              <strong>Operação concluída.</strong>
+              <p>{locationActionMessage}</p>
+            </section>
+          )}
 
           <section className="results-wrapper">
             <AnalysisResult data={result} />

@@ -1,3 +1,4 @@
+import LocationMap from './LocationMap'
 import MetadataTabs from './MetadataTabs'
 
 function AnalysisResult({ data }) {
@@ -18,21 +19,23 @@ function AnalysisResult({ data }) {
           <InfoRow label="Tamanho" value={formatFileSize(data?.fileSize)} />
           <InfoRow label="Tipo Detectado" value={data?.contentTypeDetectado} />
           <InfoRow label="Tipo Amigável" value={data?.fileType} />
-          <InfoRow label="Hash SHA-256" value={data?.hashSha256} />
+          <InfoRow label="Hash SHA-256" value={data?.hashSha256} valueClassName="hash-value" />
         </dl>
       </section>
 
       {hasPrivacyRisk && (
         <section className="card privacy-risk-card">
-          <h2>Risco e Privacidade</h2>
+          <h2>Risk & Privacy</h2>
           <div className="risk-header">
-            <span className={`risk-badge ${privacyRisk.level || 'low'}`}>
-              {formatRiskLevel(privacyRisk.level)}
+            <span className={`risk-badge ${normalizeRiskLevel(privacyRisk.level)}`}>
+              RISK LEVEL: {formatRiskLevel(privacyRisk.level)}
             </span>
-            <span className="risk-score">Score: {privacyRisk.score ?? 0}</span>
+            <span className="risk-score">
+              SCORE: <strong>{privacyRisk.score ?? 0}</strong>
+            </span>
           </div>
 
-          <h3 className="risk-subtitle">Motivos</h3>
+          <h3 className="risk-subtitle">Reasons</h3>
           {Array.isArray(privacyRisk.reasons) && privacyRisk.reasons.length > 0 ? (
             <ul className="risk-list">
               {privacyRisk.reasons.map((reason, index) => (
@@ -43,7 +46,7 @@ function AnalysisResult({ data }) {
             <p className="muted">Nenhum motivo sensível detectado.</p>
           )}
 
-          <h3 className="risk-subtitle">Dados sensíveis encontrados</h3>
+          <h3 className="risk-subtitle">Sensitive Data Found</h3>
           {Array.isArray(privacyRisk.sensitiveDataFound) && privacyRisk.sensitiveDataFound.length > 0 ? (
             <ul className="sensitive-tags">
               {privacyRisk.sensitiveDataFound.map((item, index) => (
@@ -63,8 +66,11 @@ function AnalysisResult({ data }) {
         ) : (
           <ul className="insights-list">
             {insights.map((item, index) => (
-              <li key={`${index}-${String(item)}`}>
-                {typeof item === 'string' ? item : JSON.stringify(item)}
+              <li key={`${index}-${String(item)}`} className={`insight-item ${classifyInsightType(item)}`}>
+                <span className="insight-prefix">{formatInsightPrefix(item)}</span>
+                <span className="insight-text">
+                  {typeof item === 'string' ? item : JSON.stringify(item)}
+                </span>
               </li>
             ))}
           </ul>
@@ -98,29 +104,42 @@ function AnalysisResult({ data }) {
 
       {hasLocationData && (
         <section className="card location-card">
-          <h2>Localização</h2>
+          <h2>Localização no Mapa</h2>
           {location.hasGps ? (
-            <>
-              <dl className="info-grid">
-                <InfoRow label="Latitude" value={formatCoordinate(location.latitudeDecimal)} />
-                <InfoRow label="Longitude" value={formatCoordinate(location.longitudeDecimal)} />
-                <InfoRow label="Posição Original" value={location.gpsPositionOriginal} />
-                {location.gpsDateTime && <InfoRow label="Data/Hora GPS" value={location.gpsDateTime} />}
-                {location.gpsAltitude && <InfoRow label="Altitude" value={location.gpsAltitude} />}
-              </dl>
-              {location.mapsUrl && (
-                <a
-                  className="map-link"
-                  href={location.mapsUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  📍 Abrir no Google Maps
-                </a>
-              )}
-            </>
+            <div className="location-layout">
+              <div className="location-textual">
+                <div className="terminal-block">
+                  <p className="terminal-line">[GPS]</p>
+                  <p className="terminal-line">LAT: {formatCoordinate(location.latitudeDecimal)}</p>
+                  <p className="terminal-line">LON: {formatCoordinate(location.longitudeDecimal)}</p>
+                  {location.gpsPositionOriginal && (
+                    <p className="terminal-line">POS: {location.gpsPositionOriginal}</p>
+                  )}
+                  {location.gpsDateTime && <p className="terminal-line">TIME: {location.gpsDateTime}</p>}
+                  {location.gpsAltitude && <p className="terminal-line">ALT: {location.gpsAltitude}</p>}
+                </div>
+                {location.mapsUrl && (
+                  <a
+                    className="map-link"
+                    href={location.mapsUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    &gt; OPEN IN MAP
+                  </a>
+                )}
+              </div>
+              <div className="location-map-panel">
+                <h3 className="location-map-title">Mapa da Localização</h3>
+                <LocationMap
+                  latitude={location.latitudeDecimal}
+                  longitude={location.longitudeDecimal}
+                  gpsPositionOriginal={location.gpsPositionOriginal}
+                />
+              </div>
+            </div>
           ) : (
-            <p className="muted">Nenhuma localização GPS encontrada neste arquivo</p>
+            <div className="map-empty muted">Nenhuma localização GPS disponível para exibir no mapa.</div>
           )}
         </section>
       )}
@@ -150,11 +169,11 @@ function AnalysisResult({ data }) {
   )
 }
 
-function InfoRow({ label, value }) {
+function InfoRow({ label, value, valueClassName = '' }) {
   return (
     <>
       <dt>{label}</dt>
-      <dd>{value || '-'}</dd>
+      <dd className={valueClassName}>{value || '-'}</dd>
     </>
   )
 }
@@ -191,13 +210,44 @@ function formatCoordinate(value) {
 }
 
 function formatRiskLevel(level) {
-  if (level === 'high') {
-    return 'Alto'
+  const normalized = normalizeRiskLevel(level)
+  if (normalized === 'high') {
+    return 'HIGH'
   }
-  if (level === 'medium') {
-    return 'Médio'
+  if (normalized === 'medium') {
+    return 'MEDIUM'
   }
-  return 'Baixo'
+  return 'LOW'
+}
+
+function normalizeRiskLevel(level) {
+  if (level === 'high' || level === 'medium' || level === 'low') {
+    return level
+  }
+  return 'low'
+}
+
+function classifyInsightType(item) {
+  const raw = typeof item === 'string' ? item : JSON.stringify(item)
+  const content = raw.toLowerCase()
+  if (content.includes('risco') || content.includes('alert') || content.includes('warning')) {
+    return 'warn'
+  }
+  if (content.includes('ok') || content.includes('seguro') || content.includes('safe')) {
+    return 'ok'
+  }
+  return 'info'
+}
+
+function formatInsightPrefix(item) {
+  const type = classifyInsightType(item)
+  if (type === 'warn') {
+    return '[WARN]'
+  }
+  if (type === 'ok') {
+    return '[OK]'
+  }
+  return '[INFO]'
 }
 
 export default AnalysisResult

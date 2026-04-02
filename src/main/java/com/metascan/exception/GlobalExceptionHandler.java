@@ -51,6 +51,15 @@ public class GlobalExceptionHandler {
         return buildError(HttpStatus.BAD_REQUEST, "Arquivo excede o tamanho maximo permitido para upload.");
     }
 
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ErrorResponseDto> handleIllegalArgument(IllegalArgumentException ex) {
+        String message = ex.getMessage();
+        if (message == null || message.isBlank()) {
+            message = "Parametro invalido na requisicao.";
+        }
+        return buildError(HttpStatus.BAD_REQUEST, message);
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponseDto> handleGenericException(Exception ex) {
         return buildError(HttpStatus.INTERNAL_SERVER_ERROR, "Erro interno inesperado.");

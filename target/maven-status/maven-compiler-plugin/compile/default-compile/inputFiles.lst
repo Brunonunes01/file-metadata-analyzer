@@ -8,6 +8,8 @@
 /home/bruno/Projects/metascan/src/main/java/com/metascan/dto/MetadataResponseDto.java
 /home/bruno/Projects/metascan/src/main/java/com/metascan/dto/MetadataSecurityDto.java
 /home/bruno/Projects/metascan/src/main/java/com/metascan/dto/MetadataSummaryDto.java
+/home/bruno/Projects/metascan/src/main/java/com/metascan/dto/spoof/SpoofAction.java
+/home/bruno/Projects/metascan/src/main/java/com/metascan/dto/spoof/SpoofRequestDto.java
 /home/bruno/Projects/metascan/src/main/java/com/metascan/exception/BadRequestException.java
 /home/bruno/Projects/metascan/src/main/java/com/metascan/exception/GlobalExceptionHandler.java
 /home/bruno/Projects/metascan/src/main/java/com/metascan/exception/MetadataExtractionException.java
@@ -15,4 +17,6 @@
 /home/bruno/Projects/metascan/src/main/java/com/metascan/service/MetadataCleaningService.java
 /home/bruno/Projects/metascan/src/main/java/com/metascan/service/MetadataExtractionService.java
 /home/bruno/Projects/metascan/src/main/java/com/metascan/service/MetadataInsightsService.java
+/home/bruno/Projects/metascan/src/main/java/com/metascan/service/MetadataLocationUpdateService.java
 /home/bruno/Projects/metascan/src/main/java/com/metascan/service/MetadataPrivacyRiskService.java
+/home/bruno/Projects/metascan/src/main/java/com/metascan/service/MetadataSpoofingService.java
