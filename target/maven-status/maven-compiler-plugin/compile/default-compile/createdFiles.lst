@@ -7,10 +7,14 @@ com/metascan/service/ExifToolService.class
 com/metascan/dto/MetadataSecurityDto.class
 com/metascan/dto/ErrorResponseDto.class
 com/metascan/controller/MetadataController.class
+com/metascan/service/MetadataPrivacyRiskService.class
 com/metascan/dto/MetadataExtractResponseDto.class
 com/metascan/dto/MetadataSummaryDto.class
+com/metascan/service/MetadataCleaningService.class
+com/metascan/dto/MetadataPrivacyRiskDto.class
 com/metascan/dto/MetadataLocationDto.class
 com/metascan/exception/BadRequestException.class
+com/metascan/service/MetadataCleaningService$CleanedFile.class
 com/metascan/exception/GlobalExceptionHandler.class
 com/metascan/service/ExifToolService$1.class
 com/metascan/dto/MergedMetadataEntryDto.class

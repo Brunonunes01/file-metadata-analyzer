@@ -19,6 +19,7 @@ public record MetadataExtractResponseDto(
         MetadataSummaryDto summary,
         MetadataSecurityDto security,
         String exiftoolStatus,
-        MetadataLocationDto location
+        MetadataLocationDto location,
+        MetadataPrivacyRiskDto privacyRisk
 ) {
 }

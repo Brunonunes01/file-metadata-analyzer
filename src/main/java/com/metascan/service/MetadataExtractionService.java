@@ -2,6 +2,7 @@ package com.metascan.service;
 
 import com.metascan.dto.MetadataExtractResponseDto;
 import com.metascan.dto.MetadataLocationDto;
+import com.metascan.dto.MetadataPrivacyRiskDto;
 import com.metascan.dto.MergedMetadataEntryDto;
 import com.metascan.dto.MetadataSecurityDto;
 import com.metascan.dto.MetadataSummaryDto;
@@ -54,10 +55,16 @@ public class MetadataExtractionService {
     private final Tika tika = new Tika();
     private final ExifToolService exifToolService;
     private final MetadataInsightsService metadataInsightsService;
+    private final MetadataPrivacyRiskService metadataPrivacyRiskService;
 
-    public MetadataExtractionService(ExifToolService exifToolService, MetadataInsightsService metadataInsightsService) {
+    public MetadataExtractionService(
+            ExifToolService exifToolService,
+            MetadataInsightsService metadataInsightsService,
+            MetadataPrivacyRiskService metadataPrivacyRiskService
+    ) {
         this.exifToolService = exifToolService;
         this.metadataInsightsService = metadataInsightsService;
+        this.metadataPrivacyRiskService = metadataPrivacyRiskService;
     }
 
     public MetadataExtractResponseDto extract(MultipartFile file) {
@@ -145,6 +152,13 @@ public class MetadataExtractionService {
                     location.hasGps()
             );
             boolean hasValidAuthor = metadataInsightsService.isValidAuthor(author);
+            MetadataPrivacyRiskDto privacyRisk = metadataPrivacyRiskService.evaluate(
+                    extractedMetadata,
+                    exiftoolMetadata,
+                    location,
+                    hasValidAuthor,
+                    createdAtResolution.hasValidDate()
+            );
 
             MetadataSecurityDto security = new MetadataSecurityDto(
                     metadataCount > 0,
@@ -169,7 +183,8 @@ public class MetadataExtractionService {
                     summary,
                     security,
                     exifToolResult.status(),
-                    location
+                    location,
+                    privacyRisk
             );
         } catch (IOException | TikaException | SAXException ex) {
             throw new MetadataExtractionException("Falha ao extrair metadados do arquivo.", ex);

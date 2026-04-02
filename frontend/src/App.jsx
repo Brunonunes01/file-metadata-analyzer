@@ -2,18 +2,21 @@ import { useRef, useState } from 'react'
 import AnalysisResult from './components/AnalysisResult'
 import LoadingState from './components/LoadingState'
 import UploadPanel from './components/UploadPanel'
-import { extractMetadata } from './services/metadataService'
+import { cleanMetadata, extractMetadata } from './services/metadataService'
 import { exportAnalysisAsJson } from './utils/exportAnalysisJson'
 import { exportAnalysisAsTxt } from './utils/exportAnalysisTxt'
 import { exportAnalysisAsPdf } from './utils/exportAnalysisPdf'
+import { triggerDownloadFromBlob } from './utils/exportUtils'
 import './App.css'
 
 function App() {
   const [file, setFile] = useState(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [isCleaningMetadata, setIsCleaningMetadata] = useState(false)
   const [dragActive, setDragActive] = useState(false)
   const [error, setError] = useState('')
   const [result, setResult] = useState(null)
+  const [analyzedFile, setAnalyzedFile] = useState(null)
   const fileInputRef = useRef(null)
 
   const handleBrowseClick = () => {
@@ -64,7 +67,9 @@ function App() {
     try {
       const response = await extractMetadata(file)
       setResult(response)
+      setAnalyzedFile(file)
     } catch (requestError) {
+      setAnalyzedFile(null)
       setError(requestError.message || 'Não foi possível analisar o arquivo. Tente novamente.')
     } finally {
       setIsLoading(false)
@@ -82,6 +87,30 @@ function App() {
   const handleExportPdf = () => {
     exportAnalysisAsPdf(result)
   }
+
+  const handleCleanMetadata = async () => {
+    if (!analyzedFile) {
+      setError('Selecione e analise uma imagem antes de remover metadados.')
+      return
+    }
+
+    setIsCleaningMetadata(true)
+    setError('')
+
+    try {
+      const cleanedFile = await cleanMetadata(analyzedFile)
+      triggerDownloadFromBlob(cleanedFile.blob, cleanedFile.fileName)
+    } catch (requestError) {
+      setError(requestError.message || 'Não foi possível limpar os metadados da imagem.')
+    } finally {
+      setIsCleaningMetadata(false)
+    }
+  }
+
+  const canCleanMetadata =
+    result &&
+    analyzedFile &&
+    (result.contentTypeDetectado === 'image/jpeg' || result.contentTypeDetectado === 'image/png')
 
   return (
     <main className="app-shell">
@@ -135,6 +164,16 @@ function App() {
               <button type="button" className="button primary export-button" onClick={handleExportJson}>
                 Exportar JSON
               </button>
+              {canCleanMetadata && (
+                <button
+                  type="button"
+                  className="button clean-button export-button"
+                  onClick={handleCleanMetadata}
+                  disabled={isCleaningMetadata}
+                >
+                  {isCleaningMetadata ? 'Limpando...' : 'Baixar imagem limpa'}
+                </button>
+              )}
             </div>
           </section>
 
