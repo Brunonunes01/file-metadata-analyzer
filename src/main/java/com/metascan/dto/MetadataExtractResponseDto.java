@@ -18,6 +18,7 @@ public record MetadataExtractResponseDto(
         String hashSha256,
         MetadataSummaryDto summary,
         MetadataSecurityDto security,
+        String antivirusStatus,
         String exiftoolStatus,
         MetadataLocationDto location,
         MetadataPrivacyRiskDto privacyRisk

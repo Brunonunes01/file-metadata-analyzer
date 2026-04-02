@@ -1,11 +1,15 @@
 package com.metascan.service;
 
+import com.metascan.dto.AntivirusScanResultDto;
+import com.metascan.dto.AntivirusScanStatus;
 import com.metascan.dto.MetadataExtractResponseDto;
 import com.metascan.dto.MetadataLocationDto;
 import com.metascan.dto.MetadataPrivacyRiskDto;
 import com.metascan.dto.MergedMetadataEntryDto;
 import com.metascan.dto.MetadataSecurityDto;
 import com.metascan.dto.MetadataSummaryDto;
+import com.metascan.exception.AntivirusScanException;
+import com.metascan.exception.AntivirusThreatDetectedException;
 import com.metascan.exception.BadRequestException;
 import com.metascan.exception.MetadataExtractionException;
 import org.apache.tika.Tika;
@@ -42,6 +46,8 @@ import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 @Service
 public class MetadataExtractionService {
@@ -53,15 +59,18 @@ public class MetadataExtractionService {
     private static final Pattern COORDINATE_DIRECTION_PATTERN = Pattern.compile("(^|\\W)([NSEW])(\\W|$)");
     private final AutoDetectParser parser = new AutoDetectParser();
     private final Tika tika = new Tika();
+    private final AntivirusScanService antivirusScanService;
     private final ExifToolService exifToolService;
     private final MetadataInsightsService metadataInsightsService;
     private final MetadataPrivacyRiskService metadataPrivacyRiskService;
 
     public MetadataExtractionService(
+            AntivirusScanService antivirusScanService,
             ExifToolService exifToolService,
             MetadataInsightsService metadataInsightsService,
             MetadataPrivacyRiskService metadataPrivacyRiskService
     ) {
+        this.antivirusScanService = antivirusScanService;
         this.exifToolService = exifToolService;
         this.metadataInsightsService = metadataInsightsService;
         this.metadataPrivacyRiskService = metadataPrivacyRiskService;
@@ -76,6 +85,8 @@ public class MetadataExtractionService {
 
         try {
             byte[] fileBytes = file.getBytes();
+            AntivirusScanResultDto antivirusScanResult = scanWithAntivirus(fileBytes, fileName);
+            handleAntivirusResult(antivirusScanResult);
             Metadata metadata = new Metadata();
             metadata.set(TikaCoreProperties.RESOURCE_NAME_KEY, fileName);
 
@@ -182,6 +193,7 @@ public class MetadataExtractionService {
                     calculateSha256(fileBytes),
                     summary,
                     security,
+                    antivirusScanResult.status().wireValue(),
                     exifToolResult.status(),
                     location,
                     privacyRisk
@@ -189,6 +201,59 @@ public class MetadataExtractionService {
         } catch (IOException | TikaException | SAXException ex) {
             throw new MetadataExtractionException("Falha ao extrair metadados do arquivo.", ex);
         }
+    }
+
+    private AntivirusScanResultDto scanWithAntivirus(byte[] fileBytes, String fileName) {
+        Path tempFile = null;
+
+        try {
+            tempFile = Files.createTempFile("metascan-av-", "-" + sanitizeFileName(fileName));
+            Files.write(tempFile, fileBytes);
+            return antivirusScanService.scan(tempFile);
+        } catch (IOException ex) {
+            return new AntivirusScanResultDto(
+                    AntivirusScanStatus.SCAN_ERROR,
+                    "Nao foi possivel preparar o arquivo para verificacao antivirus.",
+                    ex.getMessage()
+            );
+        } finally {
+            if (tempFile != null) {
+                try {
+                    Files.deleteIfExists(tempFile);
+                } catch (IOException ignored) {
+                }
+            }
+        }
+    }
+
+    private void handleAntivirusResult(AntivirusScanResultDto scanResult) {
+        AntivirusScanStatus status = scanResult.status();
+
+        if (status == AntivirusScanStatus.CLEAN) {
+            return;
+        }
+
+        if (status == AntivirusScanStatus.INFECTED) {
+            throw new AntivirusThreatDetectedException(
+                    "Arquivo bloqueado por seguranca: possivel ameaca detectada pelo antivirus."
+            );
+        }
+
+        String message = switch (status) {
+            case NOT_INSTALLED -> "Scanner antivirus indisponivel no momento.";
+            case TIMEOUT -> "Nao foi possivel concluir a verificacao antivirus no tempo limite.";
+            case SCAN_ERROR -> "Nao foi possivel concluir a verificacao antivirus do arquivo.";
+            case CLEAN, INFECTED -> "Nao foi possivel concluir a verificacao antivirus do arquivo.";
+        };
+
+        throw new AntivirusScanException(message, status, scanResult.rawOutput());
+    }
+
+    private String sanitizeFileName(String fileName) {
+        if (fileName == null || fileName.isBlank()) {
+            return "file";
+        }
+        return fileName.replaceAll("[^a-zA-Z0-9._-]", "_");
     }
 
     private MetadataLocationDto buildLocation(Map<String, Object> exiftoolMetadata) {

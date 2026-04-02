@@ -16,6 +16,7 @@ function LocationPrivacyPanel({
   const [longitude, setLongitude] = useState('')
   const [newDate, setNewDate] = useState('')
   const [author, setAuthor] = useState('')
+  const [cleanupMode, setCleanupMode] = useState('sensitive')
   const [formError, setFormError] = useState('')
 
   const selectedLatitude = parseCoordinate(latitude)
@@ -34,7 +35,7 @@ function LocationPrivacyPanel({
     }
 
     setFormError('')
-    onReplace(latitude.trim(), longitude.trim())
+    onReplace(latitude.trim(), longitude.trim(), cleanupMode)
   }
 
   const handleDateChange = () => {
@@ -44,7 +45,7 @@ function LocationPrivacyPanel({
     }
 
     setFormError('')
-    onChangeDate(newDate.trim())
+    onChangeDate(newDate.trim(), cleanupMode)
   }
 
   const handleAuthorChange = () => {
@@ -54,7 +55,7 @@ function LocationPrivacyPanel({
     }
 
     setFormError('')
-    onChangeAuthor(author.trim())
+    onChangeAuthor(author.trim(), cleanupMode)
   }
 
   const handleMapPick = (lat, lon) => {
@@ -89,6 +90,59 @@ function LocationPrivacyPanel({
       <p className="muted small">
         Uso restrito a atividades autorizadas de assessment, privacidade e pentest.
       </p>
+
+      <section className="cleanup-mode-panel">
+        <h3>Modo de limpeza complementar</h3>
+        <p className="muted small">
+          Esta opção remove metadados adicionais além do campo principal alterado.
+        </p>
+        <div className="cleanup-mode-options">
+          <label className="cleanup-option">
+            <input
+              type="radio"
+              name="cleanupMode"
+              value="preserve"
+              checked={cleanupMode === 'preserve'}
+              onChange={(event) => setCleanupMode(event.target.value)}
+              disabled={loading}
+            />
+            <span>
+              <strong>Preservar outros metadados</strong>
+              <small>Altera apenas o campo selecionado.</small>
+            </span>
+          </label>
+
+          <label className="cleanup-option">
+            <input
+              type="radio"
+              name="cleanupMode"
+              value="sensitive"
+              checked={cleanupMode === 'sensitive'}
+              onChange={(event) => setCleanupMode(event.target.value)}
+              disabled={loading}
+            />
+            <span>
+              <strong>Limpar metadados sensíveis</strong>
+              <small>Remove informações adicionais de dispositivo, software e rastros sensíveis.</small>
+            </span>
+          </label>
+
+          <label className="cleanup-option">
+            <input
+              type="radio"
+              name="cleanupMode"
+              value="maximum"
+              checked={cleanupMode === 'maximum'}
+              onChange={(event) => setCleanupMode(event.target.value)}
+              disabled={loading}
+            />
+            <span>
+              <strong>Privacidade máxima</strong>
+              <small>Reduz ao máximo os metadados não essenciais.</small>
+            </span>
+          </label>
+        </div>
+      </section>
 
       <div className="spoof-grid">
         <section className="spoof-block">
@@ -125,7 +179,12 @@ function LocationPrivacyPanel({
 
                 <div className="location-picker-controls">
                   <div className="location-privacy-actions">
-                    <button type="button" className="button secondary" onClick={onRemove} disabled={loading}>
+                    <button
+                      type="button"
+                      className="button secondary"
+                      onClick={() => onRemove(cleanupMode)}
+                      disabled={loading}
+                    >
                       {loading ? '[ PROCESSING... ]' : '[ REMOVE GPS ]'}
                     </button>
                   </div>

@@ -1,5 +1,6 @@
 import LocationMap from './LocationMap'
 import MetadataTabs from './MetadataTabs'
+import AntivirusStatus from './AntivirusStatus'
 
 function AnalysisResult({ data }) {
   const summary = data?.summary || {}
@@ -16,6 +17,9 @@ function AnalysisResult({ data }) {
         <h2>Resumo do Arquivo</h2>
         <dl className="info-grid">
           <InfoRow label="Nome" value={data?.fileName} />
+        </dl>
+        <AntivirusStatus status={data?.antivirusStatus} />
+        <dl className="info-grid">
           <InfoRow label="Tamanho" value={formatFileSize(data?.fileSize)} />
           <InfoRow label="Tipo Detectado" value={data?.contentTypeDetectado} />
           <InfoRow label="Tipo Amigável" value={data?.fileType} />

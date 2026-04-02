@@ -4,7 +4,7 @@ export async function extractMetadata(file) {
   const formData = new FormData()
   formData.append('file', file)
 
-  const response = await fetch(`${API_BASE_URL}/metadata/extract`, {
+  const response = await request(`${API_BASE_URL}/metadata/extract`, {
     method: 'POST',
     body: formData,
   })
@@ -30,7 +30,7 @@ export async function cleanMetadata(file) {
   const formData = new FormData()
   formData.append('file', file)
 
-  const response = await fetch(`${API_BASE_URL}/metadata/clean`, {
+  const response = await request(`${API_BASE_URL}/metadata/clean`, {
     method: 'POST',
     body: formData,
   })
@@ -66,7 +66,7 @@ export async function updateImageLocation(file, action, latitude, longitude) {
     formData.append('longitude', String(longitude))
   }
 
-  const response = await fetch(`${API_BASE_URL}/metadata/location/update`, {
+  const response = await request(`${API_BASE_URL}/metadata/location/update`, {
     method: 'POST',
     body: formData,
   })
@@ -97,6 +97,9 @@ export async function spoofMetadata(file, payload) {
   const formData = new FormData()
   formData.append('file', file)
   formData.append('action', payload.action)
+  if (payload.cleanupMode) {
+    formData.append('cleanupMode', String(payload.cleanupMode))
+  }
 
   if (payload.action === 'replace_gps') {
     formData.append('latitude', String(payload.latitude))
@@ -111,7 +114,7 @@ export async function spoofMetadata(file, payload) {
     formData.append('author', String(payload.author))
   }
 
-  const response = await fetch(`${API_BASE_URL}/metadata/spoof`, {
+  const response = await request(`${API_BASE_URL}/metadata/spoof`, {
     method: 'POST',
     body: formData,
   })
@@ -153,4 +156,14 @@ function extractFileNameFromHeader(contentDisposition) {
   }
 
   return null
+}
+
+async function request(url, options) {
+  try {
+    return await fetch(url, options)
+  } catch {
+    throw new Error(
+      'Falha de conexão com a API. Verifique se o backend está ativo e se a URL base da API está correta.'
+    )
+  }
 }

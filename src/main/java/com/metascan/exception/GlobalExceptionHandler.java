@@ -1,5 +1,6 @@
 package com.metascan.exception;
 
+import com.metascan.dto.AntivirusScanStatus;
 import com.metascan.dto.ErrorResponseDto;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -15,6 +16,16 @@ import java.time.Instant;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    @ExceptionHandler(AntivirusThreatDetectedException.class)
+    public ResponseEntity<ErrorResponseDto> handleAntivirusThreatDetected(AntivirusThreatDetectedException ex) {
+        return buildError(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage());
+    }
+
+    @ExceptionHandler(AntivirusScanException.class)
+    public ResponseEntity<ErrorResponseDto> handleAntivirusScanException(AntivirusScanException ex) {
+        return buildError(resolveAntivirusScanStatus(ex.getStatus()), ex.getMessage());
+    }
 
     @ExceptionHandler(BadRequestException.class)
     public ResponseEntity<ErrorResponseDto> handleBadRequest(BadRequestException ex) {
@@ -73,5 +84,17 @@ public class GlobalExceptionHandler {
                 Instant.now()
         );
         return ResponseEntity.status(status).body(response);
+    }
+
+    private HttpStatus resolveAntivirusScanStatus(AntivirusScanStatus status) {
+        if (status == null) {
+            return HttpStatus.SERVICE_UNAVAILABLE;
+        }
+
+        return switch (status) {
+            case NOT_INSTALLED, TIMEOUT, SCAN_ERROR -> HttpStatus.SERVICE_UNAVAILABLE;
+            case INFECTED -> HttpStatus.UNPROCESSABLE_ENTITY;
+            case CLEAN -> HttpStatus.SERVICE_UNAVAILABLE;
+        };
     }
 }

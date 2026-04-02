@@ -336,6 +336,63 @@
   color: var(--text-main);
 }
 
+.antivirus-terminal {
+  margin: 8px 0 10px;
+  border: 1px solid #2a2a2a;
+  border-left-width: 4px;
+  border-radius: 10px;
+  background: #060606;
+  padding: 10px 12px;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.02);
+}
+
+.antivirus-terminal-title,
+.antivirus-terminal-description {
+  margin: 0;
+  font-family: 'IBM Plex Mono', 'JetBrains Mono', 'Fira Code', Consolas, monospace;
+}
+
+.antivirus-terminal-title {
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.antivirus-terminal-description {
+  margin-top: 6px;
+  color: #d8dce3;
+  font-size: 0.92rem;
+}
+
+.antivirus-terminal.clean {
+  border-color: rgba(0, 255, 159, 0.45);
+  border-left-color: #00ff9f;
+}
+
+.antivirus-terminal.clean .antivirus-terminal-title {
+  color: #00ff9f;
+  text-shadow: 0 0 12px rgba(0, 255, 159, 0.2);
+}
+
+.antivirus-terminal.infected {
+  border-color: rgba(255, 77, 77, 0.45);
+  border-left-color: #ff4d4d;
+}
+
+.antivirus-terminal.infected .antivirus-terminal-title {
+  color: #ff4d4d;
+  text-shadow: 0 0 12px rgba(255, 77, 77, 0.22);
+}
+
+.antivirus-terminal.error {
+  border-color: rgba(255, 209, 102, 0.45);
+  border-left-color: #ffd166;
+}
+
+.antivirus-terminal.error .antivirus-terminal-title {
+  color: #ffd166;
+  text-shadow: 0 0 12px rgba(255, 209, 102, 0.22);
+}
+
 .privacy-risk-card {
   border-color: rgba(0, 255, 159, 0.18);
 }
@@ -580,6 +637,56 @@
   gap: 12px;
 }
 
+.cleanup-mode-panel {
+  border: 1px solid #1f1f1f;
+  border-radius: 10px;
+  background: #090909;
+  padding: 12px;
+}
+
+.cleanup-mode-panel h3 {
+  margin: 0 0 6px;
+  color: #d6dae2;
+  letter-spacing: 0.03em;
+}
+
+.cleanup-mode-options {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.cleanup-option {
+  display: flex;
+  gap: 8px;
+  border: 1px solid #252525;
+  border-radius: 9px;
+  padding: 9px;
+  background: #070707;
+  cursor: pointer;
+}
+
+.cleanup-option input {
+  margin-top: 2px;
+}
+
+.cleanup-option span {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.cleanup-option strong {
+  font-size: 0.92rem;
+  color: #e2e8f0;
+}
+
+.cleanup-option small {
+  color: #aeb6c2;
+  line-height: 1.35;
+}
+
 .spoof-grid {
   display: flex;
   flex-direction: column;
@@ -770,6 +877,10 @@
   }
 
   .location-form {
+    grid-template-columns: 1fr;
+  }
+
+  .cleanup-mode-options {
     grid-template-columns: 1fr;
   }
 

@@ -1,6 +1,7 @@
 package com.metascan.controller;
 
 import com.metascan.dto.MetadataExtractResponseDto;
+import com.metascan.dto.spoof.CleanupMode;
 import com.metascan.dto.spoof.SpoofAction;
 import com.metascan.dto.spoof.SpoofRequestDto;
 import com.metascan.service.MetadataCleaningService;
@@ -82,6 +83,7 @@ public class MetadataController {
     public ResponseEntity<byte[]> spoofMetadata(
             @RequestParam("file") @NotNull MultipartFile file,
             @RequestParam("action") @NotNull String action,
+            @RequestParam(value = "cleanupMode", required = false) String cleanupMode,
             @RequestParam(value = "latitude", required = false) String latitude,
             @RequestParam(value = "longitude", required = false) String longitude,
             @RequestParam(value = "newDate", required = false) String newDate,
@@ -89,6 +91,7 @@ public class MetadataController {
     ) {
         SpoofRequestDto request = new SpoofRequestDto(
                 SpoofAction.fromWireValue(action),
+                CleanupMode.fromWireValue(cleanupMode),
                 latitude,
                 longitude,
                 newDate,

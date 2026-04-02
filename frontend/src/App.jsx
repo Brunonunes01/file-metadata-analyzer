@@ -112,7 +112,7 @@ function App() {
     }
   }
 
-  const handleRemoveLocation = async () => {
+  const handleRemoveLocation = async (cleanupMode) => {
     if (!analyzedFile) {
       setError('Selecione e analise uma imagem antes de remover a localização GPS.')
       return
@@ -123,7 +123,7 @@ function App() {
     setLocationActionMessage('')
 
     try {
-      const spoofedFile = await spoofMetadata(analyzedFile, { action: 'remove_gps' })
+      const spoofedFile = await spoofMetadata(analyzedFile, { action: 'remove_gps', cleanupMode })
       triggerDownloadFromBlob(spoofedFile.blob, spoofedFile.fileName)
       setLocationActionMessage('Localização GPS removida com sucesso. O download da nova cópia foi iniciado.')
     } catch (requestError) {
@@ -133,7 +133,7 @@ function App() {
     }
   }
 
-  const handleReplaceLocation = async (latitude, longitude) => {
+  const handleReplaceLocation = async (latitude, longitude, cleanupMode) => {
     if (!analyzedFile) {
       setError('Selecione e analise uma imagem antes de substituir a localização GPS.')
       return
@@ -148,6 +148,7 @@ function App() {
         action: 'replace_gps',
         latitude,
         longitude,
+        cleanupMode,
       })
       triggerDownloadFromBlob(spoofedFile.blob, spoofedFile.fileName)
       setLocationActionMessage('Localização GPS substituída com sucesso. O download da nova cópia foi iniciado.')
@@ -158,7 +159,7 @@ function App() {
     }
   }
 
-  const handleChangeDate = async (newDate) => {
+  const handleChangeDate = async (newDate, cleanupMode) => {
     if (!analyzedFile) {
       setError('Selecione e analise um arquivo antes de alterar a data dos metadados.')
       return
@@ -172,6 +173,7 @@ function App() {
       const spoofedFile = await spoofMetadata(analyzedFile, {
         action: 'change_date',
         newDate,
+        cleanupMode,
       })
       triggerDownloadFromBlob(spoofedFile.blob, spoofedFile.fileName)
       setLocationActionMessage('Data dos metadados alterada com sucesso. O download da nova cópia foi iniciado.')
@@ -182,7 +184,7 @@ function App() {
     }
   }
 
-  const handleChangeAuthor = async (author) => {
+  const handleChangeAuthor = async (author, cleanupMode) => {
     if (!analyzedFile) {
       setError('Selecione e analise um arquivo antes de alterar o autor dos metadados.')
       return
@@ -196,6 +198,7 @@ function App() {
       const spoofedFile = await spoofMetadata(analyzedFile, {
         action: 'change_author',
         author,
+        cleanupMode,
       })
       triggerDownloadFromBlob(spoofedFile.blob, spoofedFile.fileName)
       setLocationActionMessage('Autor dos metadados alterado com sucesso. O download da nova cópia foi iniciado.')

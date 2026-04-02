@@ -1,6 +1,7 @@
 package com.metascan.service;
 
 import com.metascan.dto.spoof.SpoofAction;
+import com.metascan.dto.spoof.CleanupMode;
 import com.metascan.dto.spoof.SpoofRequestDto;
 import com.metascan.exception.BadRequestException;
 import com.metascan.exception.MetadataExtractionException;
@@ -48,6 +49,11 @@ public class MetadataSpoofingService {
     );
     private static final Set<String> GPS_SUPPORTED_TYPES = Set.of("image/jpeg", "image/png");
     private final Tika tika = new Tika();
+    private final MetadataSpoofCleanupHelper metadataSpoofCleanupHelper;
+
+    public MetadataSpoofingService(MetadataSpoofCleanupHelper metadataSpoofCleanupHelper) {
+        this.metadataSpoofCleanupHelper = metadataSpoofCleanupHelper;
+    }
 
     public SpoofedFile spoof(MultipartFile file, SpoofRequestDto request) {
         if (file == null || file.isEmpty()) {
@@ -91,6 +97,9 @@ public class MetadataSpoofingService {
         command.add("-overwrite_original");
         command.add("-P");
         command.add("-m");
+
+        CleanupMode cleanupMode = request.cleanupMode() == null ? CleanupMode.PRESERVE : request.cleanupMode();
+        command.addAll(metadataSpoofCleanupHelper.buildCleanupArgs(cleanupMode, request.action(), detectedContentType));
 
         if (request.action() == SpoofAction.REMOVE_GPS) {
             validateGpsSupportedType(detectedContentType);
