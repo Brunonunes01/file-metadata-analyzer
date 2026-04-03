@@ -3,7 +3,7 @@ import MetadataTabs from './MetadataTabs'
 import AntivirusStatus from './AntivirusStatus'
 import DeviceForensicsCard from './DeviceForensicsCard'
 
-function AnalysisResult({ data }) {
+function AnalysisResult({ data, variant = 'analyzer' }) {
   const summary = data?.summary || {}
   const security = data?.security || {}
   const privacyRisk = data?.privacyRisk
@@ -30,6 +30,15 @@ function AnalysisResult({ data }) {
   const isImageFile = typeof data?.contentTypeDetectado === 'string' && data.contentTypeDetectado.startsWith('image/')
   const shouldShowDeviceForensics = isImageFile || hasDeviceForensicsData
   const insights = Array.isArray(data?.insights) ? data.insights : []
+  const isForensicsView = variant === 'forensics'
+  const shouldShowRiskPrivacy = !isForensicsView
+  const shouldShowFriendlySummary = !isForensicsView
+  const shouldShowSecurity = !isForensicsView
+  const shouldShowText = !isForensicsView
+  const shouldShowDiagnostics = !isForensicsView
+  const shouldShowMetadataTabs = !isForensicsView
+  const shouldShowLocation = isForensicsView
+  const shouldShowInsights = true
 
   return (
     <div className="results-grid">
@@ -47,9 +56,9 @@ function AnalysisResult({ data }) {
         </dl>
       </section>
 
-      {shouldShowDeviceForensics && <DeviceForensicsCard deviceForensics={deviceForensics} />}
+      {isForensicsView && shouldShowDeviceForensics && <DeviceForensicsCard deviceForensics={deviceForensics} />}
 
-      {hasPrivacyRisk && (
+      {shouldShowRiskPrivacy && hasPrivacyRisk && (
         <section className="card privacy-risk-card">
           <h2>Risk & Privacy</h2>
           <div className="risk-header">
@@ -85,50 +94,56 @@ function AnalysisResult({ data }) {
         </section>
       )}
 
-      <section className="card">
-        <h2>Insights</h2>
-        {insights.length === 0 ? (
-          <p className="muted">Nenhum insight retornado.</p>
-        ) : (
-          <ul className="insights-list">
-            {insights.map((item, index) => (
-              <li key={`${index}-${String(item)}`} className={`insight-item ${classifyInsightType(item)}`}>
-                <span className="insight-prefix">{formatInsightPrefix(item)}</span>
-                <span className="insight-text">
-                  {typeof item === 'string' ? item : JSON.stringify(item)}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+      {shouldShowInsights && (
+        <section className="card">
+          <h2>Insights</h2>
+          {insights.length === 0 ? (
+            <p className="muted">Nenhum insight retornado.</p>
+          ) : (
+            <ul className="insights-list">
+              {insights.map((item, index) => (
+                <li key={`${index}-${String(item)}`} className={`insight-item ${classifyInsightType(item)}`}>
+                  <span className="insight-prefix">{formatInsightPrefix(item)}</span>
+                  <span className="insight-text">
+                    {typeof item === 'string' ? item : JSON.stringify(item)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      )}
 
-      <section className="card">
-        <h2>Resumo Amigável</h2>
-        <dl className="info-grid">
-          <InfoRow label="Author" value={summary.author} />
-          <InfoRow label="Last Author" value={summary.lastAuthor} />
-          <InfoRow label="Created At" value={summary.createdAt} />
-          <InfoRow label="Last Modified" value={summary.lastModified} />
-          <InfoRow label="Revision" value={summary.revision} />
-          <InfoRow label="Title" value={summary.title} />
-          <InfoRow label="Subject" value={summary.subject} />
-          <InfoRow label="Description" value={summary.description} />
-          <InfoRow label="Language" value={summary.language} />
-        </dl>
-      </section>
+      {shouldShowFriendlySummary && (
+        <section className="card">
+          <h2>Resumo Amigável</h2>
+          <dl className="info-grid">
+            <InfoRow label="Author" value={summary.author} />
+            <InfoRow label="Last Author" value={summary.lastAuthor} />
+            <InfoRow label="Created At" value={summary.createdAt} />
+            <InfoRow label="Last Modified" value={summary.lastModified} />
+            <InfoRow label="Revision" value={summary.revision} />
+            <InfoRow label="Title" value={summary.title} />
+            <InfoRow label="Subject" value={summary.subject} />
+            <InfoRow label="Description" value={summary.description} />
+            <InfoRow label="Language" value={summary.language} />
+          </dl>
+        </section>
+      )}
 
-      <section className="card">
-        <h2>Segurança</h2>
-        <dl className="info-grid">
-          <InfoRow label="hasMetadata" value={formatBoolean(security.hasMetadata)} />
-          <InfoRow label="hasText" value={formatBoolean(security.hasText)} />
-          <InfoRow label="hasAuthor" value={formatBoolean(security.hasAuthor)} />
-          <InfoRow label="hasCreationDate" value={formatBoolean(security.hasCreationDate)} />
-        </dl>
-      </section>
+      {shouldShowSecurity && (
+        <section className="card">
+          <h2>Segurança</h2>
+          <dl className="info-grid">
+            <InfoRow label="hasMetadata" value={formatBoolean(security.hasMetadata)} />
+            <InfoRow label="hasText" value={formatBoolean(security.hasText)} />
+            <InfoRow label="hasAuthor" value={formatBoolean(security.hasAuthor)} />
+            <InfoRow label="hasCreationDate" value={formatBoolean(security.hasCreationDate)} />
+          </dl>
+        </section>
+      )}
 
-      {hasLocationData && (
+      {shouldShowLocation && hasLocationData && (
         <section className="card location-card">
           <h2>Localização no Mapa</h2>
           {location.hasGps ? (
@@ -170,27 +185,33 @@ function AnalysisResult({ data }) {
         </section>
       )}
 
-      <section className="card full-width">
-        <h2>Texto Extraído</h2>
-        <div className="text-preview">{data?.textPreview || 'Nenhum texto extraído para exibir.'}</div>
-        <p className="muted small">Comprimento do texto: {data?.textLength ?? 0}</p>
-      </section>
+      {shouldShowText && (
+        <section className="card full-width">
+          <h2>Texto Extraído</h2>
+          <div className="text-preview">{data?.textPreview || 'Nenhum texto extraído para exibir.'}</div>
+          <p className="muted small">Comprimento do texto: {data?.textLength ?? 0}</p>
+        </section>
+      )}
 
-      <section className="card full-width">
-        <h2>Diagnóstico da Extração</h2>
-        <dl className="info-grid">
-          <InfoRow label="ExifTool Status" value={data?.exiftoolStatus} />
-          <InfoRow label="Quantidade de Metadados" value={data?.metadataCount} />
-        </dl>
-      </section>
+      {shouldShowDiagnostics && (
+        <section className="card full-width">
+          <h2>Diagnóstico da Extração</h2>
+          <dl className="info-grid">
+            <InfoRow label="ExifTool Status" value={data?.exiftoolStatus} />
+            <InfoRow label="Quantidade de Metadados" value={data?.metadataCount} />
+          </dl>
+        </section>
+      )}
 
-      <div className="full-width">
-        <MetadataTabs
-          tikaMetadata={data?.tikaMetadata}
-          exiftoolMetadata={data?.exiftoolMetadata}
-          mergedMetadata={data?.mergedMetadata}
-        />
-      </div>
+      {shouldShowMetadataTabs && (
+        <div className="full-width">
+          <MetadataTabs
+            tikaMetadata={data?.tikaMetadata}
+            exiftoolMetadata={data?.exiftoolMetadata}
+            mergedMetadata={data?.mergedMetadata}
+          />
+        </div>
+      )}
     </div>
   )
 }
