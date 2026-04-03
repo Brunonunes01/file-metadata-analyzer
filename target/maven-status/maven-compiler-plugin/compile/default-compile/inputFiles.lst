@@ -20,6 +20,7 @@
 /home/bruno/Projects/metascan/src/main/java/com/metascan/exception/MetadataExtractionException.java
 /home/bruno/Projects/metascan/src/main/java/com/metascan/service/AntivirusScanService.java
 /home/bruno/Projects/metascan/src/main/java/com/metascan/service/ExifToolService.java
+/home/bruno/Projects/metascan/src/main/java/com/metascan/service/FileValidationService.java
 /home/bruno/Projects/metascan/src/main/java/com/metascan/service/MetadataCleaningService.java
 /home/bruno/Projects/metascan/src/main/java/com/metascan/service/MetadataExtractionService.java
 /home/bruno/Projects/metascan/src/main/java/com/metascan/service/MetadataInsightsService.java
@@ -27,3 +28,6 @@
 /home/bruno/Projects/metascan/src/main/java/com/metascan/service/MetadataPrivacyRiskService.java
 /home/bruno/Projects/metascan/src/main/java/com/metascan/service/MetadataSpoofCleanupHelper.java
 /home/bruno/Projects/metascan/src/main/java/com/metascan/service/MetadataSpoofingService.java
+/home/bruno/Projects/metascan/src/main/java/com/metascan/service/RateLimitFilter.java
+/home/bruno/Projects/metascan/src/main/java/com/metascan/service/SecureExecutionService.java
+/home/bruno/Projects/metascan/src/main/java/com/metascan/service/SecureTempFileService.java

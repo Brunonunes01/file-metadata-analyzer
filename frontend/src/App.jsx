@@ -3,7 +3,9 @@ import AnalysisResult from './components/AnalysisResult'
 import LoadingState from './components/LoadingState'
 import LocationPrivacyPanel from './components/LocationPrivacyPanel'
 import UploadPanel from './components/UploadPanel'
+import UsernameScanPanel from './components/UsernameScanPanel'
 import { cleanMetadata, extractMetadata, spoofMetadata } from './services/metadataService'
+import { scanUsername } from './services/osintService'
 import { exportAnalysisAsJson } from './utils/exportAnalysisJson'
 import { exportAnalysisAsTxt } from './utils/exportAnalysisTxt'
 import { exportAnalysisAsPdf } from './utils/exportAnalysisPdf'
@@ -20,6 +22,9 @@ function App() {
   const [locationActionMessage, setLocationActionMessage] = useState('')
   const [result, setResult] = useState(null)
   const [analyzedFile, setAnalyzedFile] = useState(null)
+  const [username, setUsername] = useState('')
+  const [isUsernameScanning, setIsUsernameScanning] = useState(false)
+  const [usernameScanResult, setUsernameScanResult] = useState(null)
   const fileInputRef = useRef(null)
 
   const handleBrowseClick = () => {
@@ -78,6 +83,22 @@ function App() {
       setLocationActionMessage('')
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const handleUsernameScan = async () => {
+    setError('')
+    setLocationActionMessage('')
+    setIsUsernameScanning(true)
+
+    try {
+      const response = await scanUsername(username)
+      setUsernameScanResult(response)
+    } catch (requestError) {
+      setUsernameScanResult(null)
+      setError(requestError.message || 'Nao foi possivel executar o scan de username.')
+    } finally {
+      setIsUsernameScanning(false)
     }
   }
 
@@ -241,6 +262,14 @@ function App() {
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onAnalyze={handleAnalyze}
+      />
+
+      <UsernameScanPanel
+        username={username}
+        loading={isUsernameScanning}
+        result={usernameScanResult}
+        onUsernameChange={setUsername}
+        onScan={handleUsernameScan}
       />
 
       {error && (

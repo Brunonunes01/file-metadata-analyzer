@@ -10,9 +10,9 @@ import com.metascan.dto.MetadataSecurityDto;
 import com.metascan.dto.MetadataSummaryDto;
 import com.metascan.exception.AntivirusScanException;
 import com.metascan.exception.AntivirusThreatDetectedException;
-import com.metascan.exception.BadRequestException;
 import com.metascan.exception.MetadataExtractionException;
-import org.apache.tika.Tika;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.metadata.Metadata;
 import org.apache.tika.metadata.TikaCoreProperties;
@@ -48,28 +48,43 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Set;
+import javax.xml.parsers.ParserConfigurationException;
+import javax.xml.parsers.SAXParserFactory;
 
 @Service
 public class MetadataExtractionService {
 
+    private static final Logger log = LoggerFactory.getLogger(MetadataExtractionService.class);
     private static final DateTimeFormatter HUMAN_READABLE_DATE_FORMATTER = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
     private static final DateTimeFormatter EXIF_DATE_TIME_WITH_ZONE = DateTimeFormatter.ofPattern("yyyy:MM:dd HH:mm:ssXXX");
     private static final DateTimeFormatter EXIF_DATE_TIME_NO_ZONE = DateTimeFormatter.ofPattern("yyyy:MM:dd HH:mm:ss");
     private static final Pattern COORDINATE_NUMBER_PATTERN = Pattern.compile("(\\d+(?:[\\.,]\\d+)?)");
     private static final Pattern COORDINATE_DIRECTION_PATTERN = Pattern.compile("(^|\\W)([NSEW])(\\W|$)");
+    private static final int TIKA_TEXT_CHAR_LIMIT = 200_000;
+    private static final Set<String> ALLOWED_EXTRACT_TYPES = Set.of(
+            "image/jpeg",
+            "image/png",
+            "application/pdf"
+    );
     private final AutoDetectParser parser = new AutoDetectParser();
-    private final Tika tika = new Tika();
+    private final SecureTempFileService secureTempFileService;
+    private final FileValidationService fileValidationService;
     private final AntivirusScanService antivirusScanService;
     private final ExifToolService exifToolService;
     private final MetadataInsightsService metadataInsightsService;
     private final MetadataPrivacyRiskService metadataPrivacyRiskService;
 
     public MetadataExtractionService(
+            SecureTempFileService secureTempFileService,
+            FileValidationService fileValidationService,
             AntivirusScanService antivirusScanService,
             ExifToolService exifToolService,
             MetadataInsightsService metadataInsightsService,
             MetadataPrivacyRiskService metadataPrivacyRiskService
     ) {
+        this.secureTempFileService = secureTempFileService;
+        this.fileValidationService = fileValidationService;
         this.antivirusScanService = antivirusScanService;
         this.exifToolService = exifToolService;
         this.metadataInsightsService = metadataInsightsService;
@@ -77,24 +92,27 @@ public class MetadataExtractionService {
     }
 
     public MetadataExtractResponseDto extract(MultipartFile file) {
-        if (file == null || file.isEmpty()) {
-            throw new BadRequestException("Arquivo nao enviado ou vazio.");
-        }
-
-        String fileName = Optional.ofNullable(file.getOriginalFilename()).orElse("unknown");
+        FileValidationService.ValidatedFile validatedFile = fileValidationService.validateAndRead(
+                file,
+                ALLOWED_EXTRACT_TYPES,
+                "Tipo de arquivo nao suportado para analise. Tipos aceitos: JPEG, PNG, PDF e documentos OpenXML."
+        );
+        String fileName = Optional.ofNullable(validatedFile.originalFileName()).orElse("unknown");
+        log.info("Upload recebido para analise: fileName='{}', size={} bytes, mime={}",
+                fileName, validatedFile.size(), validatedFile.detectedContentType());
 
         try {
-            byte[] fileBytes = file.getBytes();
-            AntivirusScanResultDto antivirusScanResult = scanWithAntivirus(fileBytes, fileName);
+            byte[] fileBytes = validatedFile.bytes();
+            AntivirusScanResultDto antivirusScanResult = scanWithAntivirus(fileBytes);
             handleAntivirusResult(antivirusScanResult);
             Metadata metadata = new Metadata();
             metadata.set(TikaCoreProperties.RESOURCE_NAME_KEY, fileName);
 
-            String detectedContentType = tika.detect(fileBytes, fileName);
+            String detectedContentType = validatedFile.detectedContentType();
             metadata.set(Metadata.CONTENT_TYPE, detectedContentType);
 
-            BodyContentHandler contentHandler = new BodyContentHandler(-1);
-            parser.parse(new ByteArrayInputStream(fileBytes), contentHandler, metadata, new ParseContext());
+            BodyContentHandler contentHandler = new BodyContentHandler(TIKA_TEXT_CHAR_LIMIT);
+            parser.parse(new ByteArrayInputStream(fileBytes), contentHandler, metadata, buildSecureParseContext());
 
             Map<String, String> extractedMetadata = Arrays.stream(metadata.names())
                     .sorted()
@@ -180,7 +198,7 @@ public class MetadataExtractionService {
 
             return new MetadataExtractResponseDto(
                     fileName,
-                    file.getSize(),
+                    validatedFile.size(),
                     detectedContentType,
                     resolveFriendlyFileType(detectedContentType),
                     extractedMetadata,
@@ -198,16 +216,16 @@ public class MetadataExtractionService {
                     location,
                     privacyRisk
             );
-        } catch (IOException | TikaException | SAXException ex) {
+        } catch (IOException | TikaException | SAXException | ParserConfigurationException ex) {
             throw new MetadataExtractionException("Falha ao extrair metadados do arquivo.", ex);
         }
     }
 
-    private AntivirusScanResultDto scanWithAntivirus(byte[] fileBytes, String fileName) {
+    private AntivirusScanResultDto scanWithAntivirus(byte[] fileBytes) {
         Path tempFile = null;
 
         try {
-            tempFile = Files.createTempFile("metascan-av-", "-" + sanitizeFileName(fileName));
+            tempFile = secureTempFileService.createSecureTempFile("metascan-av-", ".tmp");
             Files.write(tempFile, fileBytes);
             return antivirusScanService.scan(tempFile);
         } catch (IOException ex) {
@@ -234,6 +252,7 @@ public class MetadataExtractionService {
         }
 
         if (status == AntivirusScanStatus.INFECTED) {
+            log.warn("Arquivo bloqueado por malware detectado em /metadata/extract.");
             throw new AntivirusThreatDetectedException(
                     "Arquivo bloqueado por seguranca: possivel ameaca detectada pelo antivirus."
             );
@@ -249,11 +268,18 @@ public class MetadataExtractionService {
         throw new AntivirusScanException(message, status, scanResult.rawOutput());
     }
 
-    private String sanitizeFileName(String fileName) {
-        if (fileName == null || fileName.isBlank()) {
-            return "file";
-        }
-        return fileName.replaceAll("[^a-zA-Z0-9._-]", "_");
+    private ParseContext buildSecureParseContext() throws ParserConfigurationException, SAXException {
+        SAXParserFactory saxParserFactory = SAXParserFactory.newInstance();
+        saxParserFactory.setNamespaceAware(true);
+        saxParserFactory.setXIncludeAware(false);
+        saxParserFactory.setFeature("http://xml.org/sax/features/external-general-entities", false);
+        saxParserFactory.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
+        saxParserFactory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+        saxParserFactory.setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false);
+
+        ParseContext parseContext = new ParseContext();
+        parseContext.set(SAXParserFactory.class, saxParserFactory);
+        return parseContext;
     }
 
     private MetadataLocationDto buildLocation(Map<String, Object> exiftoolMetadata) {

@@ -2,6 +2,8 @@ package com.metascan.exception;
 
 import com.metascan.dto.AntivirusScanStatus;
 import com.metascan.dto.ErrorResponseDto;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
@@ -17,14 +19,20 @@ import java.time.Instant;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+    private static final String PUBLIC_PROCESSING_ERROR = "Ocorreu um erro durante o processamento.";
+    private static final String PUBLIC_PROCESSING_TITLE = "Erro ao processar arquivo";
+
     @ExceptionHandler(AntivirusThreatDetectedException.class)
     public ResponseEntity<ErrorResponseDto> handleAntivirusThreatDetected(AntivirusThreatDetectedException ex) {
+        log.warn("Arquivo bloqueado por antivirus.");
         return buildError(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage());
     }
 
     @ExceptionHandler(AntivirusScanException.class)
     public ResponseEntity<ErrorResponseDto> handleAntivirusScanException(AntivirusScanException ex) {
-        return buildError(resolveAntivirusScanStatus(ex.getStatus()), ex.getMessage());
+        log.warn("Falha de scanner antivirus. status={}", ex.getStatus());
+        return buildProcessingError(resolveAntivirusScanStatus(ex.getStatus()));
     }
 
     @ExceptionHandler(BadRequestException.class)
@@ -44,12 +52,14 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(MultipartException.class)
     public ResponseEntity<ErrorResponseDto> handleMultipartException(MultipartException ex) {
+        log.warn("Requisicao multipart invalida: {}", ex.getClass().getSimpleName());
         return buildError(HttpStatus.BAD_REQUEST, "Requisicao multipart invalida.");
     }
 
     @ExceptionHandler(MetadataExtractionException.class)
     public ResponseEntity<ErrorResponseDto> handleMetadataExtractionException(MetadataExtractionException ex) {
-        return buildError(HttpStatus.UNPROCESSABLE_ENTITY, ex.getMessage());
+        log.warn("Erro de processamento de metadata: {}", ex.getClass().getSimpleName());
+        return buildProcessingError(HttpStatus.UNPROCESSABLE_ENTITY);
     }
 
     @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
@@ -73,17 +83,26 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponseDto> handleGenericException(Exception ex) {
-        return buildError(HttpStatus.INTERNAL_SERVER_ERROR, "Erro interno inesperado.");
+        log.error("Erro interno inesperado: {}", ex.getClass().getSimpleName());
+        return buildProcessingError(HttpStatus.INTERNAL_SERVER_ERROR);
     }
 
     private ResponseEntity<ErrorResponseDto> buildError(HttpStatus status, String message) {
+        return buildError(status, status.getReasonPhrase(), message);
+    }
+
+    private ResponseEntity<ErrorResponseDto> buildError(HttpStatus status, String error, String message) {
         ErrorResponseDto response = new ErrorResponseDto(
                 status.value(),
-                status.getReasonPhrase(),
+                error,
                 message,
                 Instant.now()
         );
         return ResponseEntity.status(status).body(response);
+    }
+
+    private ResponseEntity<ErrorResponseDto> buildProcessingError(HttpStatus status) {
+        return buildError(status, PUBLIC_PROCESSING_TITLE, PUBLIC_PROCESSING_ERROR);
     }
 
     private HttpStatus resolveAntivirusScanStatus(AntivirusScanStatus status) {

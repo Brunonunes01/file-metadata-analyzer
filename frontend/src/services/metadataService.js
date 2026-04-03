@@ -9,19 +9,7 @@ export async function extractMetadata(file) {
     body: formData,
   })
 
-  if (!response.ok) {
-    let detail = ''
-
-    try {
-      const errorData = await response.json()
-      detail = errorData.message || errorData.error || JSON.stringify(errorData)
-    } catch {
-      detail = await response.text()
-    }
-
-    const suffix = detail ? ` (${detail})` : ''
-    throw new Error(`Falha ao analisar o arquivo${suffix}`)
-  }
+  await ensureOk(response, 'Falha ao analisar o arquivo.')
 
   return response.json()
 }
@@ -35,19 +23,7 @@ export async function cleanMetadata(file) {
     body: formData,
   })
 
-  if (!response.ok) {
-    let detail = ''
-
-    try {
-      const errorData = await response.json()
-      detail = errorData.message || errorData.error || JSON.stringify(errorData)
-    } catch {
-      detail = await response.text()
-    }
-
-    const suffix = detail ? ` (${detail})` : ''
-    throw new Error(`Falha ao remover metadados da imagem${suffix}`)
-  }
+  await ensureOk(response, 'Falha ao remover metadados da imagem.')
 
   const blob = await response.blob()
   const contentDisposition = response.headers.get('content-disposition')
@@ -71,19 +47,7 @@ export async function updateImageLocation(file, action, latitude, longitude) {
     body: formData,
   })
 
-  if (!response.ok) {
-    let detail = ''
-
-    try {
-      const errorData = await response.json()
-      detail = errorData.message || errorData.error || JSON.stringify(errorData)
-    } catch {
-      detail = await response.text()
-    }
-
-    const suffix = detail ? ` (${detail})` : ''
-    throw new Error(`Falha ao atualizar localização GPS${suffix}`)
-  }
+  await ensureOk(response, 'Falha ao atualizar localização GPS.')
 
   const blob = await response.blob()
   const contentDisposition = response.headers.get('content-disposition')
@@ -119,19 +83,7 @@ export async function spoofMetadata(file, payload) {
     body: formData,
   })
 
-  if (!response.ok) {
-    let detail = ''
-
-    try {
-      const errorData = await response.json()
-      detail = errorData.message || errorData.error || JSON.stringify(errorData)
-    } catch {
-      detail = await response.text()
-    }
-
-    const suffix = detail ? ` (${detail})` : ''
-    throw new Error(`Falha ao aplicar spoofing de metadados${suffix}`)
-  }
+  await ensureOk(response, 'Falha ao aplicar spoofing de metadados.')
 
   const blob = await response.blob()
   const contentDisposition = response.headers.get('content-disposition')
@@ -166,4 +118,27 @@ async function request(url, options) {
       'Falha de conexão com a API. Verifique se o backend está ativo e se a URL base da API está correta.'
     )
   }
+}
+
+async function ensureOk(response, fallbackMessage) {
+  if (response.ok) {
+    return
+  }
+
+  let apiMessage = ''
+
+  try {
+    const contentType = response.headers.get('content-type') || ''
+
+    if (contentType.includes('application/json')) {
+      const payload = await response.json()
+      apiMessage = payload?.message || payload?.error || ''
+    } else {
+      apiMessage = (await response.text()).trim()
+    }
+  } catch {
+    apiMessage = ''
+  }
+
+  throw new Error(apiMessage || fallbackMessage)
 }

@@ -1,33 +1,43 @@
 package com.metascan.service;
 
+import com.metascan.dto.AntivirusScanStatus;
 import com.metascan.exception.BadRequestException;
 import com.metascan.exception.MetadataExtractionException;
-import org.apache.tika.Tika;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
 @Service
 public class MetadataLocationUpdateService {
 
-    private static final int EXIFTOOL_TIMEOUT_SECONDS = 8;
+    private static final Logger log = LoggerFactory.getLogger(MetadataLocationUpdateService.class);
+    private static final int EXIFTOOL_TIMEOUT_SECONDS = 60;
     private static final Set<String> SUPPORTED_IMAGE_TYPES = Set.of("image/jpeg", "image/png");
-    private final Tika tika = new Tika();
+    private final SecureTempFileService secureTempFileService;
+    private final FileValidationService fileValidationService;
+    private final AntivirusScanService antivirusScanService;
+    private final SecureExecutionService secureExecutionService;
+
+    public MetadataLocationUpdateService(
+            SecureTempFileService secureTempFileService,
+            FileValidationService fileValidationService,
+            AntivirusScanService antivirusScanService,
+            SecureExecutionService secureExecutionService
+    ) {
+        this.secureTempFileService = secureTempFileService;
+        this.fileValidationService = fileValidationService;
+        this.antivirusScanService = antivirusScanService;
+        this.secureExecutionService = secureExecutionService;
+    }
 
     public UpdatedLocationFile updateLocation(
             MultipartFile file,
@@ -35,21 +45,23 @@ public class MetadataLocationUpdateService {
             String latitudeRaw,
             String longitudeRaw
     ) {
-        if (file == null || file.isEmpty()) {
-            throw new BadRequestException("Arquivo nao enviado ou vazio.");
-        }
-
+        FileValidationService.ValidatedFile validatedFile = fileValidationService.validateAndRead(
+                file,
+                SUPPORTED_IMAGE_TYPES,
+                "Atualizacao de localizacao disponivel apenas para imagens JPEG e PNG."
+        );
         LocationAction action = parseAction(actionRaw);
-        String originalFileName = file.getOriginalFilename() == null ? "image" : file.getOriginalFilename();
+        String originalFileName = validatedFile.originalFileName();
+        log.info("Upload recebido para atualizacao de localizacao: fileName='{}', size={} bytes, mime={}, action={}",
+                originalFileName, validatedFile.size(), validatedFile.detectedContentType(), action);
         Path tempFile = null;
 
         try {
-            byte[] originalBytes = file.getBytes();
-            String detectedContentType = tika.detect(originalBytes, originalFileName);
-            validateSupportedImageType(detectedContentType);
+            String detectedContentType = validatedFile.detectedContentType();
+            tempFile = secureTempFileService.createSecureTempFile("metascan-location-", ".tmp");
+            Files.write(tempFile, validatedFile.bytes());
 
-            tempFile = Files.createTempFile("metascan-location-", resolveTempExtension(detectedContentType));
-            Files.write(tempFile, originalBytes);
+            enforceAntivirus(tempFile);
 
             if (action == LocationAction.REMOVE) {
                 runExifTool(buildRemoveArgs(tempFile));
@@ -76,10 +88,16 @@ public class MetadataLocationUpdateService {
         }
     }
 
-    private void validateSupportedImageType(String contentType) {
-        if (!SUPPORTED_IMAGE_TYPES.contains(contentType)) {
-            throw new BadRequestException("Atualizacao de localizacao disponivel apenas para imagens JPEG e PNG.");
+    private void enforceAntivirus(Path tempFile) {
+        var scanResult = antivirusScanService.scan(tempFile);
+        if (scanResult.isClean()) {
+            return;
         }
+        if (scanResult.status() == AntivirusScanStatus.INFECTED) {
+            log.warn("Arquivo bloqueado por malware detectado em /metadata/location/update.");
+            throw new BadRequestException("Arquivo bloqueado por seguranca: possivel ameaca detectada pelo antivirus.");
+        }
+        throw new MetadataExtractionException("Scanner antivirus indisponivel para processar o arquivo.", new RuntimeException("antivirus"));
     }
 
     private LocationAction parseAction(String actionRaw) {
@@ -165,33 +183,18 @@ public class MetadataLocationUpdateService {
     }
 
     private void runExifTool(List<String> commandArgs) {
-        ProcessBuilder processBuilder = new ProcessBuilder(commandArgs);
-
-        ExecutorService executorService = Executors.newFixedThreadPool(2);
-        Process process = null;
-
         try {
-            Process startedProcess = processBuilder.start();
-            process = startedProcess;
-
-            Future<String> stdoutFuture = executorService.submit(() -> readStream(startedProcess.getInputStream()));
-            Future<String> stderrFuture = executorService.submit(() -> readStream(startedProcess.getErrorStream()));
-
-            boolean finished = startedProcess.waitFor(EXIFTOOL_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-            if (!finished) {
-                startedProcess.destroyForcibly();
+            SecureExecutionService.CommandResult commandResult = secureExecutionService.execute(commandArgs, EXIFTOOL_TIMEOUT_SECONDS);
+            if (commandResult.timedOut()) {
                 throw new MetadataExtractionException(
                         "ExifTool excedeu o tempo limite durante atualizacao da localizacao GPS.",
                         new RuntimeException("ExifTool timeout")
                 );
             }
 
-            String stderr = getFutureValue(stderrFuture);
-            getFutureValue(stdoutFuture);
-
-            if (startedProcess.exitValue() != 0) {
+            if (commandResult.exitCode() != 0) {
                 throw new MetadataExtractionException(
-                        buildErrorMessage("Falha ao atualizar localizacao GPS da imagem.", stderr),
+                        buildErrorMessage("Falha ao atualizar localizacao GPS da imagem.", commandResult.stderr()),
                         new RuntimeException("ExifTool exit code diferente de zero")
                 );
             }
@@ -203,26 +206,6 @@ public class MetadataLocationUpdateService {
         } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
             throw new MetadataExtractionException("Execucao do ExifTool interrompida durante atualizacao da localizacao GPS.", ex);
-        } finally {
-            if (process != null && process.isAlive()) {
-                process.destroyForcibly();
-            }
-            executorService.shutdownNow();
-        }
-    }
-
-    private String readStream(InputStream inputStream) throws IOException {
-        return new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
-    }
-
-    private String getFutureValue(Future<String> future) {
-        try {
-            return future.get(2, TimeUnit.SECONDS);
-        } catch (InterruptedException ex) {
-            Thread.currentThread().interrupt();
-            return "";
-        } catch (ExecutionException | TimeoutException ex) {
-            return "";
         }
     }
 

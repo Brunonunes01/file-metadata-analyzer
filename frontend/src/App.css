@@ -98,6 +98,76 @@
   gap: 12px;
 }
 
+.username-scan-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.username-scan-form {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.username-scan-form input {
+  flex: 1;
+  min-width: 240px;
+  border: 1px solid #2a2a2a;
+  background: #090909;
+  color: var(--text-main);
+  border-radius: 9px;
+  padding: 9px 10px;
+  font: inherit;
+}
+
+.username-scan-form input:focus {
+  outline: none;
+  border-color: rgba(0, 255, 159, 0.65);
+  box-shadow: 0 0 0 2px rgba(0, 255, 159, 0.1);
+}
+
+.username-table-wrapper {
+  overflow-x: auto;
+  border: 1px solid #1f1f1f;
+  border-radius: 10px;
+}
+
+.username-table {
+  width: 100%;
+  min-width: 540px;
+  border-collapse: collapse;
+  background: #090909;
+  font-size: 0.92rem;
+}
+
+.username-table th,
+.username-table td {
+  border-bottom: 1px solid #1f1f1f;
+  text-align: left;
+  padding: 10px;
+  vertical-align: top;
+}
+
+.username-table th {
+  color: #d3d8e2;
+  background: #0b0b0b;
+}
+
+.username-table td {
+  color: var(--text-main);
+}
+
+.username-table td a {
+  color: var(--accent-cyan);
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+.username-table td a:hover {
+  text-decoration: underline;
+}
+
 .dropzone {
   border: 1px dashed rgba(0, 255, 159, 0.6);
   border-radius: 12px;
@@ -122,6 +192,7 @@
   margin: 0;
   color: var(--accent);
   letter-spacing: 0.04em;
+  overflow-wrap: anywhere;
 }
 
 .upload-actions {
@@ -135,8 +206,11 @@
   border: 1px solid rgba(0, 255, 159, 0.6);
   border-radius: 9px;
   padding: 10px 14px;
+  min-height: 44px;
   background: #090909;
   color: var(--text-main);
+  font-size: 0.95rem;
+  line-height: 1.2;
   font-weight: 600;
   cursor: pointer;
   transition: border-color 140ms ease, box-shadow 140ms ease, background-color 140ms ease, transform 140ms ease;
@@ -858,6 +932,54 @@
 }
 
 @media (max-width: 900px) {
+  .app-shell {
+    padding: 22px 14px 40px;
+    gap: 12px;
+  }
+
+  .hero {
+    padding: 18px;
+    border-radius: 14px;
+  }
+
+  .hero h1 {
+    font-size: clamp(1.75rem, 9vw, 2.3rem);
+  }
+
+  .hero-subtitle {
+    font-size: 0.88rem;
+  }
+
+  .card {
+    padding: 14px;
+    border-radius: 12px;
+  }
+
+  .dropzone {
+    min-height: 112px;
+    padding: 14px;
+  }
+
+  .upload-actions {
+    flex-direction: column;
+  }
+
+  .upload-actions .button {
+    width: 100%;
+  }
+
+  .username-scan-form {
+    flex-direction: column;
+  }
+
+  .username-scan-form input {
+    min-width: 100%;
+  }
+
+  .username-scan-form .button {
+    width: 100%;
+  }
+
   .export-card,
   .export-actions {
     justify-content: stretch;
@@ -884,6 +1006,10 @@
     grid-template-columns: 1fr;
   }
 
+  .cleanup-option {
+    align-items: flex-start;
+  }
+
   .location-picker-layout {
     grid-template-columns: 1fr;
   }
@@ -900,7 +1026,68 @@
     grid-template-columns: 1fr;
   }
 
+  .risk-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .spoof-inline-form {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .spoof-inline-form .button {
+    width: 100%;
+  }
+
+  .location-privacy-actions .button,
+  .location-form-buttons .button {
+    width: 100%;
+  }
+
+  .tabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 2px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .tab-button {
+    white-space: nowrap;
+    flex: 0 0 auto;
+  }
+
   .location-map {
     height: 220px;
+  }
+}
+
+@media (max-width: 520px) {
+  .app-shell {
+    padding: 16px 10px 28px;
+  }
+
+  .hero p {
+    font-size: 0.93rem;
+  }
+
+  .card h2 {
+    font-size: 1rem;
+  }
+
+  .button,
+  .map-link {
+    width: 100%;
+    padding: 11px 12px;
+  }
+
+  .location-map,
+  .picker-map {
+    height: 200px;
+  }
+
+  .json-view,
+  .text-preview {
+    font-size: 0.8rem;
   }
 }
