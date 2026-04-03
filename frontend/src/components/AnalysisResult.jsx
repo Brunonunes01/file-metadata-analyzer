@@ -1,6 +1,7 @@
 import LocationMap from './LocationMap'
 import MetadataTabs from './MetadataTabs'
 import AntivirusStatus from './AntivirusStatus'
+import DeviceForensicsCard from './DeviceForensicsCard'
 
 function AnalysisResult({ data }) {
   const summary = data?.summary || {}
@@ -9,6 +10,25 @@ function AnalysisResult({ data }) {
   const hasPrivacyRisk = Boolean(privacyRisk && typeof privacyRisk === 'object')
   const location = data?.location
   const hasLocationData = Boolean(location && typeof location === 'object')
+  const deviceForensics = data?.deviceForensics
+  const hasDeviceForensicsData = Boolean(
+    deviceForensics &&
+      (
+        deviceForensics.deviceDetected === true ||
+        deviceForensics.brand ||
+        deviceForensics.model ||
+        deviceForensics.modelCode ||
+        deviceForensics.cameraType ||
+        deviceForensics.aperture ||
+        deviceForensics.iso ||
+        deviceForensics.shutterSpeed ||
+        deviceForensics.focalLength ||
+        deviceForensics.imageSize ||
+        deviceForensics.megapixels
+      ),
+  )
+  const isImageFile = typeof data?.contentTypeDetectado === 'string' && data.contentTypeDetectado.startsWith('image/')
+  const shouldShowDeviceForensics = isImageFile || hasDeviceForensicsData
   const insights = Array.isArray(data?.insights) ? data.insights : []
 
   return (
@@ -26,6 +46,8 @@ function AnalysisResult({ data }) {
           <InfoRow label="Hash SHA-256" value={data?.hashSha256} valueClassName="hash-value" />
         </dl>
       </section>
+
+      {shouldShowDeviceForensics && <DeviceForensicsCard deviceForensics={deviceForensics} />}
 
       {hasPrivacyRisk && (
         <section className="card privacy-risk-card">

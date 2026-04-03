@@ -1,7 +1,9 @@
 /home/bruno/Projects/metascan/src/main/java/com/metascan/MetaScanApplication.java
 /home/bruno/Projects/metascan/src/main/java/com/metascan/controller/MetadataController.java
+/home/bruno/Projects/metascan/src/main/java/com/metascan/controller/OsintController.java
 /home/bruno/Projects/metascan/src/main/java/com/metascan/dto/AntivirusScanResultDto.java
 /home/bruno/Projects/metascan/src/main/java/com/metascan/dto/AntivirusScanStatus.java
+/home/bruno/Projects/metascan/src/main/java/com/metascan/dto/DeviceForensicsDto.java
 /home/bruno/Projects/metascan/src/main/java/com/metascan/dto/ErrorResponseDto.java
 /home/bruno/Projects/metascan/src/main/java/com/metascan/dto/MergedMetadataEntryDto.java
 /home/bruno/Projects/metascan/src/main/java/com/metascan/dto/MetadataExtractResponseDto.java
@@ -10,6 +12,8 @@
 /home/bruno/Projects/metascan/src/main/java/com/metascan/dto/MetadataResponseDto.java
 /home/bruno/Projects/metascan/src/main/java/com/metascan/dto/MetadataSecurityDto.java
 /home/bruno/Projects/metascan/src/main/java/com/metascan/dto/MetadataSummaryDto.java
+/home/bruno/Projects/metascan/src/main/java/com/metascan/dto/osint/UsernameScanProfileDto.java
+/home/bruno/Projects/metascan/src/main/java/com/metascan/dto/osint/UsernameScanResponseDto.java
 /home/bruno/Projects/metascan/src/main/java/com/metascan/dto/spoof/CleanupMode.java
 /home/bruno/Projects/metascan/src/main/java/com/metascan/dto/spoof/SpoofAction.java
 /home/bruno/Projects/metascan/src/main/java/com/metascan/dto/spoof/SpoofRequestDto.java
@@ -19,6 +23,7 @@
 /home/bruno/Projects/metascan/src/main/java/com/metascan/exception/GlobalExceptionHandler.java
 /home/bruno/Projects/metascan/src/main/java/com/metascan/exception/MetadataExtractionException.java
 /home/bruno/Projects/metascan/src/main/java/com/metascan/service/AntivirusScanService.java
+/home/bruno/Projects/metascan/src/main/java/com/metascan/service/DeviceForensicsService.java
 /home/bruno/Projects/metascan/src/main/java/com/metascan/service/ExifToolService.java
 /home/bruno/Projects/metascan/src/main/java/com/metascan/service/FileValidationService.java
 /home/bruno/Projects/metascan/src/main/java/com/metascan/service/MetadataCleaningService.java
@@ -31,3 +36,4 @@
 /home/bruno/Projects/metascan/src/main/java/com/metascan/service/RateLimitFilter.java
 /home/bruno/Projects/metascan/src/main/java/com/metascan/service/SecureExecutionService.java
 /home/bruno/Projects/metascan/src/main/java/com/metascan/service/SecureTempFileService.java
+/home/bruno/Projects/metascan/src/main/java/com/metascan/service/UsernameScanService.java

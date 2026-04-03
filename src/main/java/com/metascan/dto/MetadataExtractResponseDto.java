@@ -21,6 +21,7 @@ public record MetadataExtractResponseDto(
         String antivirusStatus,
         String exiftoolStatus,
         MetadataLocationDto location,
+        DeviceForensicsDto deviceForensics,
         MetadataPrivacyRiskDto privacyRisk
 ) {
 }

@@ -2,6 +2,7 @@ package com.metascan.service;
 
 import com.metascan.dto.AntivirusScanResultDto;
 import com.metascan.dto.AntivirusScanStatus;
+import com.metascan.dto.DeviceForensicsDto;
 import com.metascan.dto.MetadataExtractResponseDto;
 import com.metascan.dto.MetadataLocationDto;
 import com.metascan.dto.MetadataPrivacyRiskDto;
@@ -72,6 +73,7 @@ public class MetadataExtractionService {
     private final FileValidationService fileValidationService;
     private final AntivirusScanService antivirusScanService;
     private final ExifToolService exifToolService;
+    private final DeviceForensicsService deviceForensicsService;
     private final MetadataInsightsService metadataInsightsService;
     private final MetadataPrivacyRiskService metadataPrivacyRiskService;
 
@@ -80,6 +82,7 @@ public class MetadataExtractionService {
             FileValidationService fileValidationService,
             AntivirusScanService antivirusScanService,
             ExifToolService exifToolService,
+            DeviceForensicsService deviceForensicsService,
             MetadataInsightsService metadataInsightsService,
             MetadataPrivacyRiskService metadataPrivacyRiskService
     ) {
@@ -87,6 +90,7 @@ public class MetadataExtractionService {
         this.fileValidationService = fileValidationService;
         this.antivirusScanService = antivirusScanService;
         this.exifToolService = exifToolService;
+        this.deviceForensicsService = deviceForensicsService;
         this.metadataInsightsService = metadataInsightsService;
         this.metadataPrivacyRiskService = metadataPrivacyRiskService;
     }
@@ -171,6 +175,7 @@ public class MetadataExtractionService {
             int textLength = extractedText.length();
             String textPreview = textLength == 0 ? "" : extractedText.substring(0, Math.min(1000, textLength));
             MetadataLocationDto location = buildLocation(exiftoolMetadata);
+            DeviceForensicsDto deviceForensics = deviceForensicsService.build(detectedContentType, exiftoolMetadata);
             boolean isImageFile = detectedContentType != null && detectedContentType.startsWith("image/");
             List<String> insights = metadataInsightsService.generateInsights(
                     author,
@@ -180,6 +185,7 @@ public class MetadataExtractionService {
                     isImageFile,
                     location.hasGps()
             );
+            insights = appendDeviceForensicsInsight(insights, isImageFile, deviceForensics.deviceDetected());
             boolean hasValidAuthor = metadataInsightsService.isValidAuthor(author);
             MetadataPrivacyRiskDto privacyRisk = metadataPrivacyRiskService.evaluate(
                     extractedMetadata,
@@ -214,6 +220,7 @@ public class MetadataExtractionService {
                     antivirusScanResult.status().wireValue(),
                     exifToolResult.status(),
                     location,
+                    deviceForensics,
                     privacyRisk
             );
         } catch (IOException | TikaException | SAXException | ParserConfigurationException ex) {
@@ -492,6 +499,20 @@ public class MetadataExtractionService {
             return "Video";
         }
         return "Arquivo desconhecido";
+    }
+
+    private List<String> appendDeviceForensicsInsight(List<String> insights, boolean isImageFile, boolean deviceDetected) {
+        List<String> nextInsights = new ArrayList<>(insights);
+
+        if (deviceDetected) {
+            nextInsights.add("✔️ Dispositivo de captura identificado");
+            return nextInsights;
+        }
+
+        if (isImageFile) {
+            nextInsights.add("⚠️ Não foi possível identificar o dispositivo de captura");
+        }
+        return nextInsights;
     }
 
     private String normalizeText(String content) {
